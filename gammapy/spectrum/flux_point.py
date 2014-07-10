@@ -131,6 +131,62 @@ def compute_differential_flux_points(x_method='lafferty', y_method='power_law',
     table.meta['spectral_index_description'] = "Spectral index assumed in the DIFF_FLUX computation"
     return table
 
+
+def compute_integral_flux_points(table, spec_index, emins, emaxs, x_method='Lafferty',
+                                 y_method='PowerLaw', function=None):
+    """Adds integral flux point information to table
+    Parameters
+    ----------
+    table : astropy.table
+        data table including columns 'ENERGY', 'DIFF_FLUX',
+        DIFF_FLUX_ERR'
+
+    Returns
+    -------
+    integral_flux_table : astropy.table
+        Input table with appended columns 'ENERGY_MIN', 'ENERGY_MAX', 'INT_FLUX',
+        'INT_FLUX_ERR'
+    """
+    from astropy.table import Table
+    from gammapy.spectrum.powerlaw import power_law_integral_flux
+
+    energy = np.asarray(table['ENERGY'])
+    d_flux = np.asarray(table['DIFF_FLUX'])
+    try:
+        d_err = np.asarray(table['DIFF_FLUX_ERR'])
+    except:
+        pass
+
+    data = []
+    indices = np.arange(len(energy))
+    if y_method == 'PowerLaw':
+        I_val = power_law_integral_flux(f=d_flux, g=spec_index,
+                                            e=energy, e1=emins,
+                                            e2=emaxs)
+    elif y_method == 'Model':
+        ydiff = d_flux
+        I_val = _yint_excess_equals_expected(ydiff, emins, emaxs,
+                                                 energy, function)
+    else:
+        raise NotImplementedError
+
+    try:
+            # TODO: more rigorous implementation of error propagation should be implemented
+            # I.e. based on MC simulation rather than gaussian error assumption
+        err = d_err / d_flux
+        I_err = err * I_val
+    except:
+        pass
+ 
+    data = dict(ENERGY_MIN=emins, ENERGY_MAX=emaxs,
+                   INT_FLUX=I_val, INT_FLUX_ERR=I_err)
+
+    int_table = Table(data)
+    int_table.meta['spectral_index'] = spec_index
+
+    return int_table
+
+
 def _x_lafferty(xmin, xmax, function):
     """The Lafferty & Wyatt method to compute X.
 
@@ -161,6 +217,12 @@ def _ydiff_excess_equals_expected(yint, xmin, xmax, x, model):
     yint_model = _integrate(xmin, xmax, model)
     y_model = model(x)
     return y_model * (yint / yint_model)
+
+
+def _yint_excess_equals_expected(ydiff, xmin, xmax, x, model):
+    ydiff_model = model(x)
+    y_int = _integrate(xmin, xmax, model)
+    return y_int * (ydiff / ydiff_model)
 
 
 def _integrate(xmin, xmax, function, segments=1e6):
