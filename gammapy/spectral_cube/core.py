@@ -62,7 +62,7 @@ class GammaSpectralCube(object):
     """
     def __init__(self, data, wcs, energy):
         # TODO: check validity of inputs
-        self.data = data
+        self.data = fits.open(data)
         self.wcs = wcs
 
         # TODO: decide whether we want to use an EnergyAxis object or just use the array directly.
@@ -71,16 +71,14 @@ class GammaSpectralCube(object):
 
         self._interpolate_cache = None
 
-    @property
-    def _interpolate(self):
+    def _interpolate(self, energy):
         if self._interpolate_cache == None:
             # Initialise the interpolator
             # This doesn't do any computations ... I'm not sure if it allocates extra arrays.
             from scipy.interpolate import RegularGridInterpolator
-            points = list(map(np.arange, self.data.shape))
-            self._interpolate_cache = RegularGridInterpolator(points, self.data.value,
+            points = list(map(np.arange, self.data[0].shape))
+            self._interpolate_cache = RegularGridInterpolator(points, self.data[0].data,
                                                               fill_value=None, bounds_error=False)
-
         return self._interpolate_cache
 
     @staticmethod
@@ -124,12 +122,13 @@ class GammaSpectralCube(object):
         x, y, _ = self.wcs.wcs_world2pix(lon, lat, 0, 0)
 
         z = self.energy_axis.world2pix(energy)
-
         if combine == True:
-            x = np.array(x).flat
-            y = np.array(y).flat
-            z = np.array(z).flat
-            return np.column_stack([z, y, x])
+            x = np.array(x)
+            y = np.array(y)
+            z = np.array(z * np.ones_like(np.arange(x.shape[0])))
+            # I think these should be stacked in a third dimension rather than
+            # vertically concatenated?
+            return np.array([z]), np.array([y, x])
         else:
             return x, y, z
 
@@ -172,11 +171,17 @@ class GammaSpectralCube(object):
         """
         # Determine output shape by creating some array via broadcasting
         shape = (lon * lat * energy).shape
-
-        pix_coord = self.world2pix(lon, lat, energy, combine=True)
-        values = self._interpolate(pix_coord)
+        energy, pix_coord = self.world2pix(lon, lat, energy, combine=True)
+        values_object = self._interpolate(energy)
+        values = values_object.values
+        # Need to correctly call values at input energy?
+        # values_object(call_argument)
+        
+        import IPython; IPython.embed()
         values.reshape(shape)
-
+        
+        
+        # Need to have selected an energy cut
         return Quantity(values, '1 / (cm2 MeV s sr)')
 
     def spectral_index(self, lon, lat, energy, dz=1e-3):
