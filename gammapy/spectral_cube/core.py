@@ -134,7 +134,6 @@ class GammaSpectralCube(object):
             x = np.array(x).flat
             y = np.array(y).flat
             z = np.array(z).flat
-            #import IPython; IPython.embed()
             return np.column_stack([z, y, x])
         else:
             return x, y, z
