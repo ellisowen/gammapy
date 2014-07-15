@@ -84,6 +84,18 @@ class TestGammaSpectralCube(object):
         # expected = 10.13733026e-07
         assert_quantity(actual, expected)
 
+
+    @pytest.mark.xfail
+    def test_flux_mixed(self):
+        # Corner pixel with index [0, 0, 0]
+        lon = Quantity([344.75, 345.75], 'deg')  # pixel 0
+        lat = Quantity([-5.25, -5.35], 'deg')  # pixel 0
+        energy = Quantity(50, 'MeV')  # slice 0
+        actual = self.spectral_cube.flux(lon, lat, energy)
+        expected = self.spectral_cube.data[0, 0, 0]
+        assert_quantity(actual, expected)
+
+
     @pytest.mark.xfail
     def test_flux_array(self):
         pix = [2, 2], [3, 3], [4, 4]
