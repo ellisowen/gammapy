@@ -113,6 +113,7 @@ class FermiGalacticCenter(object):
         result['psf'] = get_pkg_data_filename('data/fermi/psf.fits')
         result['counts'] = get_pkg_data_filename('data/fermi/fermi_counts.fits.gz')
         result['diffuse_model'] = get_pkg_data_filename('data/fermi/gll_iem_v02_cutout.fits')
+        result['exposure_cube'] = get_pkg_data_filename('data/fermi/fermi_exposure.fits')
 
         return result
 
@@ -139,6 +140,18 @@ class FermiGalacticCenter(object):
         """
         filename = FermiGalacticCenter.filenames()['diffuse_model']
         return GammaSpectralCube.read(filename)
+
+    @staticmethod
+    def exposure_cube():
+        """Exposure cube.
+
+        Returns
+        -------
+        spectral_cube : `~gammapy.spectral_cube.GammaSpectralCube`
+            Exposure cube
+        """
+        filename = FermiGalacticCenter.filenames()['exposure_cube']
+        return fits.open(filename)
 
 
 def tev_spectrum(source_name):
