@@ -16,8 +16,140 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from ..spectrum import LogEnergyAxis, energy_bounds_equal_log_spacing
 from ..spectrum import powerlaw
+from ..image.utils import coordinates
 
-__all__ = ['GammaSpectralCube']
+__all__ = ['GammaSpectralCube', 'reproject_cube', 'compute_npred_cube', 'correlate_fermi_psf',
+           'interp_flux', 'interp_exposure']
+
+
+def correlate_fermi_psf(image, max_offset, resolution=0.1, energy = 'None', energy_band=[10, 500]):
+    from ..datasets import FermiGalacticCenter
+    from ..irf import EnergyDependentTablePSF
+    from astropy.coordinates import Angle
+    from scipy.ndimage import convolve
+
+    filename = FermiGalacticCenter.filenames()['psf']
+    pixel_size = Angle(resolution, 'deg')
+    offset_max = Angle(max_offset, 'deg')
+    if energy == 'None':
+        energy_band = Quantity(energy_band, 'MeV')
+        fermi_psf = EnergyDependentTablePSF.read(filename)
+        psf = fermi_psf.table_psf_in_energy_band(energy_band=energy_band, spectral_index=2.5)
+    else:
+        energy = Quantity(energy, 'MeV')
+        fermi_psf = EnergyDependentTablePSF.read(filename)
+        psf = fermi_psf.table_psf_at_energy(energy=energy)
+    psf.normalize()
+    kernel = psf.kernel(pixel_size=pixel_size, offset_max=offset_max)
+    kernel_image = kernel.value/kernel.value.sum()
+    return convolve(image, kernel_image, mode='constant')
+
+
+def interp_flux(hdu, new_energy):
+    cube = GammaSpectralCube.read(hdu)
+    lat, lon = coordinates(hdu, world=True, radians=True)
+
+    lat = Quantity(lat, 'rad')
+    lon = Quantity(lon, 'rad')
+
+    array = cube.flux(lat, lon, new_energy)
+
+    return array.reshape(lat.shape)
+
+
+def interp_exposure(hdu, new_energy):
+    max_energy = hdu.header['CRPIX3'] + (hdu.header['NAXIS3'] * hdu.header['CDELT3'])
+    if new_energy >= max_energy:
+        max_index = hdu.header['NAXIS3']
+        return hdu.data[max_index]
+    else:
+        cube = GammaSpectralCube.read(hdu)
+        lat, lon = coordinates(hdu, world=True, radians=True)
+
+        lat = Quantity(lat, 'rad')
+        lon = Quantity(lon, 'rad')
+
+        array = cube.flux(lat, lon, new_energy)
+
+        return array.reshape(lat.shape)
+
+
+def reproject_cube(hdu1, hdu2, smooth=False):
+    """Reprojects hdu1 to the header of hdu2 and returns as hdu.
+
+    Optionally smooths HDUs to match resolution.
+    """
+    from FITS_tools.cube_regrid import regrid_cube_hdu
+    if smooth == False:
+        return regrid_cube_hdu(hdu1, hdu2.header)
+    else:
+        return regrid_cube_hdu(hdu1, hdu2.header, smooth=True)
+
+
+def compute_npred_cube(flux_hdu, exposure_hdu, desired_energy=None, convolve='Yes', max_convolution_offset=10):
+    """ Computes predicted counts cube from model flux cube at given energy.
+
+    TODO: Update this docstring.
+
+    Interpolates/Extrapolates flux cube and exposure cube to the same energies
+    assuming a power law index, multiplying and optionally convolving by the
+    Fermi/LAT (or provided) energy dependent PSF and returns either counts cube
+    (for specified energy range) or counts image at a specified energy value.
+
+    Parameters
+    ----------
+    flux_cube : array_like
+        Data array (3-dim)
+    energy : float (optional)
+        Energy at which npred is returned, MeV
+    psf : array_like (optional)
+        Data array PSF image (2-dim)
+    e_bounds : array_like
+        Data array for energy bounds (1-dim), MeV
+    n_energies : int        
+        Number of equal sized logarithmic energy bins between the
+        maximum and minimum energies specified in e_bounds
+
+    Returns
+    -------
+    npred_cube : array_like
+        Data array (2-dim or 3-dim). Either a data cube if energy range is
+        specified, or an image slice of the data cube if single energy is
+        specified
+
+    Notes
+    -----
+    Returns the cube as a 3-dimensional array rather than a hdu object.
+    """
+    flux_rep = reproject_cube(flux_hdu, exposure_hdu, smooth=True)
+
+    if desired_energy != None:
+        flux = interp_flux(flux_rep, desired_energy)
+        exposure = interp_exposure(exposure_hdu, desired_energy)
+    else:
+        flux = flux_rep.data
+        exposure = exposure.data
+
+    flux *= exposure
+
+    if convolve == 'Yes':
+        energy_bins = flux.header['NAXIS3']
+        energy_min = flux.header['CRPIX3']
+        bin_size = flux.header['CDELT3']
+        resolution = flux.header['CDELT2']
+        indices = np.arange(energy_bins)
+        counts = flux.copy()
+        for index in indices:
+            #energy = Quantity(energy_min + index * bin_size, 'MeV')
+            energy = energy_min + index * bin_size
+            cube_layer = flux[index]
+            eband_min = energy_min + index * bin_size
+            eband_max = energy_min + (index + 1) * bin_size
+            counts[index] = correlated_fermi_psf(cube_layer, max_convolution_offset,
+                                                 resolution, energy, energy_band=[eband_min, eband_max])
+    else:
+        counts = flux
+    return fits.ImageHDU(counts)
 
 
 class GammaSpectralCube(object):

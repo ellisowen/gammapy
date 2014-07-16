@@ -50,6 +50,7 @@ Optional dependencies (imported and used only where needed):
 * `aplpy`_ for plotting astro images
 * `imfun`_ for a trous wavelet decomposition
 * `uncertainties`_ for Gaussian error propagation
+* `FITS_tools`_ for reprojecting images (to replace Kapteyn in gammapy)
 
 .. note:: I didn't put any effort into minimizing the number of dependencies ...
    I'll limit the number of optional packages if people complain about installation woes.
