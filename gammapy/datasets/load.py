@@ -151,7 +151,7 @@ class FermiGalacticCenter(object):
             Exposure cube
         """
         filename = FermiGalacticCenter.filenames()['exposure_cube']
-        return fits.open(filename)
+        return GammaSpectralCube.read(filename)
 
 
 def tev_spectrum(source_name):
