@@ -7,11 +7,11 @@ from gammapy.image import coordinates
 from astropy.coordinates import Angle
 from gammapy.datasets import FermiGalacticCenter
 from gammapy.irf import EnergyDependentTablePSF
-from scipy.ndimage import convolve
+
 
 
 def correlate_fermi_psf(image, max_offset, resolution=0.1, energy = 'None', energy_band=[10, 500]):
-    # Parameters
+    from scipy.ndimage import convolve
     filename = FermiGalacticCenter.filenames()['psf']
     pixel_size = Angle(resolution, 'deg')
     offset_max = Angle(max_offset, 'deg')
