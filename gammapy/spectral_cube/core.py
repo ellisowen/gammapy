@@ -89,46 +89,45 @@ def _reproject_cube(hdu1, hdu2, smooth=False):
     if smooth == False:
         return regrid_cube_hdu(hdu1, hdu2.header)
     else:
+        raise NotImplementedError
+        # Currently this does not work with smoothing
         return regrid_cube_hdu(hdu1, hdu2.header, smooth=True)
 
 
 def compute_npred_cube(flux_hdu, exposure_hdu, desired_energy=None,
                        convolve='Yes', max_convolution_offset=5):
-    """ Computes predicted counts cube from model flux cube at given energy.
+    """ Computes predicted counts cube from model flux cube.
 
-    TODO: Update this docstring.
-
-    Interpolates/Extrapolates flux cube and exposure cube to the same energies
-    assuming a power law index, multiplying and optionally convolving by the
-    Fermi/LAT (or provided) energy dependent PSF and returns either counts cube
-    (for specified energy range) or counts image at a specified energy value.
+    Counts cube will be at energies in the exposure_hdu unless specified at a
+    desired energy, for which a counts map at this energy is returned
 
     Parameters
     ----------
-    flux_cube : array_like
-        Data array (3-dim)
-    energy : float (optional)
-        Energy at which npred is returned, MeV
-    psf : array_like (optional)
-        Data array PSF image (2-dim)
-    e_bounds : array_like
-        Data array for energy bounds (1-dim), MeV
-    n_energies : int
-        Number of equal sized logarithmic energy bins between the
-        maximum and minimum energies specified in e_bounds
+    flux_hdu : `astropy.io.fits.ImageHDU`
+        Data cube (2 or 3 dimensional)
+    exposure_hdu : `astropy.io.fits.ImageHDU`
+        Data cube (2 or 3 dimensional)
+    desired_energy : float (optional)
+        Energy at which to return counts map
+    convolve : bool
+        Specify whether to convolve the counts cube with the Fermi/LAT PSF
+    max_convolution_offset : float (if convolve = 'Yes')
+        Size of convolution Kernel
 
     Returns
     -------
-    npred_cube : array_like
-        Data array (2-dim or 3-dim). Either a data cube if energy range is
-        specified, or an image slice of the data cube if single energy is
-        specified
+    npred_cube : `astropy.io.fits.ImageHDU`
+        Data cube (2 or 3 dimensional) of predicted counts.
+        If energy is specified, returns predicted counts image at given energy.
+        Otherwise, returns predicted counts cube at energies of the exposure cube.
 
     Notes
     -----
     Returns the cube as a 3-dimensional array rather than a hdu object.
     """
-    flux_rep = _reproject_cube(flux_hdu, exposure_hdu, smooth=True)
+    # TODO: Currently the smoothing option does not work, and hasn't been fixed
+    # as it wasn't needed at the time...
+    flux_rep = _reproject_cube(flux_hdu, exposure_hdu, smooth=False)
 
     if desired_energy != None:
         flux = _interp_flux(flux_rep, desired_energy)
@@ -149,7 +148,6 @@ def compute_npred_cube(flux_hdu, exposure_hdu, desired_energy=None,
         counts = flux.copy()
         if len(flux.shape) == 3:
             for index in indices:
-                #energy = Quantity(energy_min + index * bin_size, 'MeV')
                 energy = 0.5 * (energy_min + (energy_min + index * bin_size))
                 cube_layer = flux[index]
                 eband_min = energy_min + index * bin_size
@@ -232,12 +230,12 @@ class GammaSpectralCube(object):
 
     @staticmethod
     def read_hdu(hdu_object):
-        """Read spectral cube from FITS file.
+        """Read spectral cube from HDU.
 
         Parameters
         ----------
-        filename : str
-            File name
+        hdu_object : `astropy.io.fits.ImageHDU`
+            Image HDU object to be read
 
         Returns
         -------
