@@ -17,7 +17,7 @@ except ImportError:
 
 try:
     # The scipy.interpolation.RegularGridInterpolator class was added in Scipy version 0.14
-    from from FITS_tools.cube_regrid import regrid_cube_hdu
+    from FITS_tools.cube_regrid import regrid_cube_hdu
     HAS_FITSTOOLS = True
 except ImportError:
     HAS_FITSTOOLS = False
