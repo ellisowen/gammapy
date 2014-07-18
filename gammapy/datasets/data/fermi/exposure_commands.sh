@@ -16,7 +16,7 @@ gtbin algorithm=CCUBE evfile=$EVENTS outfile=$COUNTS \
       ebinalg=LOG emin=50 emax=1000000 enumbins=20 \
 
 gtltcube evfile=$EVENTS scfile=$SPACECRAFT \
-         outfile=$LIVETIME dcostheta=0.1 binsz=1 \
+         outfile=$LIVETIME dcostheta=0.1 binsz=2 \
 
 gtexpcube2 infile=$LIVETIME cmap=$COUNTS \
            outfile=$EXPOSURE irf=P7REP_CLEAN_V15 \
