@@ -11,12 +11,19 @@ gtselect infile=$EVENTS_LIST outfile=$EVENTS \
          emax=1000000 zmax=105 \
 
 gtbin algorithm=CCUBE evfile=$EVENTS outfile=$COUNTS \
+<<<<<<< HEAD
       scfile=$SPACECRAFT nxpix=61 nypix=21 binsz=1 \
       xref=0 yref=0 axisrot=0 proj=CAR coordsys=GAL \
       ebinalg=LOG emin=50 emax=1000000 enumbins=60 \
 
 gtltcube evfile=$EVENTS scfile=$SPACECRAFT \
          outfile=$LIVETIME dcostheta=0.1 binsz=1 \
+         scfile=$SPACECRAFT nxpix=31 nypix=11 binsz=2 \
+         xref=0 yref=0 axisrot=0 proj=CAR coordsys=GAL \
+         ebinalg=LOG emin=50 emax=1000000 enumbins=20 \
+
+gtltcube evfile=$EVENTS scfile=$SPACECRAFT \
+         outfile=$LIVETIME dcostheta=0.1 binsz=2 \
 
 gtexpcube2 infile=$LIVETIME cmap=$COUNTS \
            outfile=$EXPOSURE irf=P7REP_CLEAN_V15 \
