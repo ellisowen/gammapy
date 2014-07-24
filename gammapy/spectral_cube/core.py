@@ -17,12 +17,13 @@ from astropy.wcs import WCS
 from astropy.coordinates import Angle
 from ..spectrum import (LogEnergyAxis,
                         energy_bounds_equal_log_spacing,
-                        energy_bin_centers_log_spacing
+                        energy_bin_centers_log_spacing,
+                        powerlaw
                         )
-from ..spectrum import powerlaw
 from ..image.utils import coordinates
 from ..irf import EnergyDependentTablePSF
 from ..image import cube_to_image
+
 
 __all__ = ['GammaSpectralCube', 'compute_npred_cube', 'convolve_npred_cube']
 
@@ -196,7 +197,7 @@ class GammaSpectralCube(object):
 
     @property
     def spatial_coordinate_images(self):
-        """Spatial coordinate iamges.
+        """Spatial coordinate images.
 
         Returns
         -------
@@ -224,8 +225,7 @@ class GammaSpectralCube(object):
         """
         cdelt = self.wcs.wcs.cdelt
         solid_angle = np.abs(cdelt[0]) * np.abs(cdelt[1])
-        shape = self.data.shape[:2]
-
+        shape = self.data.shape[1:]
         solid_angle = solid_angle * np.ones(shape, dtype=float)
         solid_angle = Quantity(solid_angle, 'deg^2')
 
@@ -347,6 +347,70 @@ class GammaSpectralCube(object):
 
         return hdu
 
+    def reproject_to(self, reference_cube):
+        """
+        Spatially reprojects a GammaSpectralCube onto a reference cube.
+
+        Parameters
+        ----------
+        reference_cube : GammaSpectralCube
+            Reference cube with the desired spatial projection.
+
+        Returns
+        -------
+        reprojected_cube : GammaSpectralCube
+            Cube spatially reprojected to the reference cube.
+        """
+        from reproject.interpolation import reproject_celestial
+
+        reference = reference_cube.data
+        shape_out = reference[0].shape
+        wcs_in = self.wcs.dropaxis(2)
+        wcs_out = reference_cube.wcs.dropaxis(2)
+
+        energy = self.energy
+
+        cube = self.data
+        new_cube = np.zeros((cube.shape[0], reference.shape[1],
+                             reference.shape[2]))
+        energy_slices = np.arange(cube.shape[0])
+        for i in energy_slices:
+            array = cube[i]
+            new_cube[i] = reproject_celestial(array.value, wcs_in, wcs_out,
+                                              shape_out)
+        new_cube = Quantity(new_cube, array.unit)
+        # Create new wcs
+        header_in = self.wcs.to_header()
+        header_out = reference_cube.wcs.to_header()
+        # Keep output energy info the same as input, but spatial stuff as per reference
+        # so need to change the energy stuff here
+        header_out['CRPIX3'] = header_in['CRPIX3']
+        header_out['CDELT3'] = header_in['CDELT3']
+        header_out['CTYPE3'] = header_in['CTYPE3']
+        header_out['CRVAL3'] = header_in['CRVAL3']
+
+        wcs_out = WCS(header_out)
+
+        return GammaSpectralCube(new_cube, wcs_out, energy)
+
+    def write_to_fits(self, filename, clobber=False):
+        """Writes GammaSpectralCube to fits.
+
+        Parameters
+        ----------
+        filename : string
+            Name of output file (.fits)
+        clobber : bool
+            True: overwrites existing files of same name.
+            False: returns error if a file exists of the same name in the
+            output directory.
+
+        Returns
+        -------
+        None
+        """
+        fits.writeto(filename, self.data, self.wcs.to_header(), clobber=clobber)
+
     def __repr__(self):
         # Copied from `spectral-cube` package
         s = "GammaSpectralCube with shape={0}".format(self.data.shape)
@@ -361,15 +425,22 @@ class GammaSpectralCube(object):
 
 
 def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
-    """TODO
+    """Computes predicated counts cube in energy bins.
 
     Parameters
     ----------
-    TODO
+    flux_cube : GammaSpectralCube
+        Differential flux cube.
+    exposure_cube : GammaSpectralCube
+        Instrument exposure cube.
+    energy_bounds : array_like
+        An array of Quantities specifying the edges of the energy bins
+        required for the predicted counts cube.
 
     Returns
     -------
-    TODO
+    npred_cube : GammaSpectralCube
+        Predicted counts cube in energy bins.
     """
     if flux_cube.data.shape[1:] != exposure_cube.data.shape[1:]:
         raise ValueError('flux_cube and exposure cube must have the same shape!\n'
@@ -381,48 +452,55 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
     lon, lat = exposure_cube.spatial_coordinate_images
     solid_angle = exposure_cube.solid_angle_image
 
-    npred_cube = np.zeros_like(solid_angle)
+    npred_cube = np.zeros((len(energy_bounds) - 1,
+                           exposure_cube.data.shape[1], exposure_cube.data.shape[2]))
     for i in range(len(energy_bounds) - 1):
         energy_bound = energy_bounds[i:i + 2]
         int_flux = flux_cube.integral_flux_image(energy_bound)
         exposure = exposure_cube.flux(lon, lat, energy_centers[i])
         npred_image = int_flux.data * exposure * solid_angle
         npred_cube[i] = npred_image
-
-    npred_cube = GammaSpectralCube(data=npred_cube,
+    npred_cube = GammaSpectralCube(data=np.nan_to_num(npred_cube),
                                    wcs=wcs,
                                    energy=energy_bounds)
-
     return npred_cube
 
 
 def convolve_npred_cube(npred_cube, max_offset, resolution=1):
-    """TODO
+    """Convolves a predicted counts cube in energy bins with the Fermi PSF.
+    TODO: generalise to pass in any energy dependent PSF object.
 
     Parameters
     ----------
-    TODO
+    npred_cube : GammaSpectralCube
+        Predicted counts cube in energy bins.
+    max_offset : float
+        Maximum offset in degrees of the PSF convolution kernel from its center.
+    resolution : float
+        Resolution of the PSF convolution kernel.
 
     Returns
     -------
-    TODO
+    convolved_cube : GammaSpectralCube
+        PSF convolved predicted counts cube in energy bins.
     """
     from scipy.ndimage import convolve
-
+    # TODO: Fix the import error that arises when FermiGalacticCenter is imported globally
+    from ..datasets import FermiGalacticCenter
     pixel_size = Angle(resolution, 'deg')
     offset_max = Angle(max_offset, 'deg')
-    if energy == 'None':
-        fermi_psf = EnergyDependentTablePSF.read(filename)
-        # PSF energy band calculation doesn't work, so implemented at log center energy instead
-        energy = Quantity(np.sqrt(energy_band[0] * energy_band[1]), 'MeV')
-        psf = fermi_psf.table_psf_at_energy(energy)
-    else:
-        energy = Quantity(energy, 'MeV')
-        fermi_psf = EnergyDependentTablePSF.read(filename)
-        psf = fermi_psf.table_psf_at_energy(energy=energy)
-    psf.normalize()
-    kernel = psf.kernel(pixel_size=pixel_size, offset_max=offset_max)
-    kernel_image = kernel.value / kernel.value.sum()
-    result = convolve(image, kernel_image, mode='constant')
-
-    return result
+    energy = npred_cube.energy
+    indices = np.arange(len(energy) - 1)
+    psf_object = EnergyDependentTablePSF.read(FermiGalacticCenter.filenames()['psf'])
+    convolved_cube = np.zeros_like(npred_cube.data)
+    for i in indices:
+        psf = psf_object.table_psf_in_energy_band(Quantity([energy[i].value,
+                                                            energy[i + 1].value],
+                                                           energy.unit))
+        kernel_array = psf.kernel(pixel_size, offset_max)
+        kernel_image = kernel_array / kernel_array.sum()
+        convolved_cube[i] = convolve(npred_cube.data[i], kernel_image,
+                                     mode='constant')
+    convolved_cube = GammaSpectralCube(data=convolved_cube, wcs=npred_cube.wcs,
+                                       energy=npred_cube.energy)
+    return convolved_cube
