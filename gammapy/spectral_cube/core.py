@@ -312,7 +312,7 @@ class GammaSpectralCube(object):
         Returns
         -------
         image : `~astropy.io.fits.ImageHDU`
-            Integral flux image (1 / (m^2 s))
+            Integral flux image (1 / (cm^2 s sr))
         """
         if isinstance(energy_bins, int):
             energy_bins = energy_bounds_equal_log_spacing(energy_band, energy_bins)
@@ -341,7 +341,6 @@ class GammaSpectralCube(object):
 
         integral_flux = integral_flux.sum(axis=0)
 
-        # TODO: check units ... set correctly if not OK.
         header = self.wcs.sub(['longitude', 'latitude']).to_header()
         hdu = fits.ImageHDU(data=integral_flux, header=header, name='integral_flux')
 
@@ -355,6 +354,9 @@ class GammaSpectralCube(object):
         ----------
         reference_cube : GammaSpectralCube
             Reference cube with the desired spatial projection.
+        conserve : {'flux', 'surface_brightness'}
+            Specify whether reprojection should be flux conserving
+            or surface brightness conserving
 
         Returns
         -------
@@ -382,8 +384,8 @@ class GammaSpectralCube(object):
         # Create new wcs
         header_in = self.wcs.to_header()
         header_out = reference_cube.wcs.to_header()
-        # Keep output energy info the same as input, but spatial stuff as per reference
-        # so need to change the energy stuff here
+        # Keep output energy info the same as input, but changes spatial information
+        # So need to restore energy parameters to input values here
         header_out['CRPIX3'] = header_in['CRPIX3']
         header_out['CDELT3'] = header_in['CDELT3']
         header_out['CTYPE3'] = header_in['CTYPE3']
@@ -451,15 +453,16 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
     wcs = exposure_cube.wcs
     lon, lat = exposure_cube.spatial_coordinate_images
     solid_angle = exposure_cube.solid_angle_image
-
     npred_cube = np.zeros((len(energy_bounds) - 1,
                            exposure_cube.data.shape[1], exposure_cube.data.shape[2]))
     for i in range(len(energy_bounds) - 1):
         energy_bound = energy_bounds[i:i + 2]
+        energy_bound = energy_bound.to('MeV')
         int_flux = flux_cube.integral_flux_image(energy_bound)
-        exposure = exposure_cube.flux(lon, lat, energy_centers[i])
-        npred_image = int_flux.data * exposure * solid_angle
-        npred_cube[i] = npred_image
+        int_flux = Quantity(int_flux.data, '1 / (cm2 s sr)')
+        exposure = Quantity(exposure_cube.flux(lon, lat, energy_centers[i]).value, 'cm2 s')
+        npred_image = int_flux * exposure * solid_angle
+        npred_cube[i] = npred_image.to('')
     npred_cube = GammaSpectralCube(data=np.nan_to_num(npred_cube),
                                    wcs=wcs,
                                    energy=energy_bounds)
@@ -485,7 +488,7 @@ def convolve_npred_cube(npred_cube, max_offset, resolution=1):
         PSF convolved predicted counts cube in energy bins.
     """
     from scipy.ndimage import convolve
-    # TODO: Fix the import error that arises when FermiGalacticCenter is imported globally
+    # TODO: Fix the circular import error that arises when FermiGalacticCenter is imported globally
     from ..datasets import FermiGalacticCenter
     pixel_size = Angle(resolution, 'deg')
     offset_max = Angle(max_offset, 'deg')

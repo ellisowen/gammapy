@@ -171,11 +171,11 @@ def test_compute_npred_cube():
     actual = npred_cube_convolved.data[0][3][3]
     assert_allclose(actual, expected)
     # This should be just inside the original image
-    expected = 1.7327201762537716e-05
+    expected = 0.017327201762537738
     actual = npred_cube_convolved.data[0][3][4]
     assert_allclose(actual, expected)
     # Check the sum remains the same
-    expected = 15.867871047628032
+    expected = 15867.871047628047
     actual = npred_cube_convolved.data.sum()
     assert_allclose(actual, expected)
 
