@@ -16,6 +16,7 @@ Files
 
 * ``counts_vela.fits.gz`` -- Vela region counts cube 
 * ``exposure_vela.fits.gz`` --	Vela region exposure cube
+* ``background_vela.fits.gz`` -- Vela region estimated background counts cube
 
 
 Details
@@ -23,6 +24,11 @@ Details
 
 Commands:
 
-I produced the `counts_vela.fits.gz` file using the commands in the executable script ``counts_commands.sh`` with the FSSC Fermi Science Tools.
-These were also used to produce the `exposure_vela.fits.gz` file using the commands in the executable script ``exposure_commands.sh``.
+The above files were produced with the Fermi Science Tools. The commands used are included in the respective executable scripts listed below.
+
+* ``counts_commands.sh`` for ``counts_vela.fits.gz``
+* ``exposure_commands.sh`` for ``exposure_vela.fits.gz``
+* ``background_commands.sh`` for ``background_vela.fits.gz``
+
+See ``model.xml`` for the background model used to produce ``background_vela.fits.gz``. This uses the Fermi Diffuse Background model. 
    

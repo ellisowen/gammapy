@@ -71,6 +71,11 @@ class TestFermiVelaRegion():
         assert counts.data.shape == (10, 10, 10) 
         assert counts.data.sum() == 4749
 
+    def test_background_cube(self):
+        background = FermiVelaRegion.background_cube()
+        assert background.data.shape == (10, 10) 
+        assert_allclose(background.data.sum(), 3289.8008)
+
     def test_exposure_cube(self):
         exposure_cube = FermiVelaRegion.exposure_cube()
         assert exposure_cube.data.shape == (11, 10, 10)

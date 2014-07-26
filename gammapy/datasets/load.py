@@ -184,6 +184,7 @@ class FermiVelaRegion(object):
         result = dict()
         result['counts'] = get_pkg_data_filename('data/fermi_vela/counts_vela.fits.gz')
         result['exposure_cube'] = get_pkg_data_filename('data/fermi_vela/exposure_vela.fits.gz')
+        result['background_cube'] = get_pkg_data_filename('data/fermi_vela/background_vela.fits.gz')
 
         return result
 
@@ -191,6 +192,18 @@ class FermiVelaRegion(object):
     def counts():
         """Counts image as `astropy.io.fits.ImageHDU`."""
         filename = FermiVelaRegion.filenames()['counts']
+        return fits.open(filename)[0]
+
+    @staticmethod
+    def background_cube():
+        """Predicted background counts spectral cube, based on the Fermi Diffuse model.
+
+        Returns
+        -------
+        spectral_cube : `~gammapy.spectral_cube.GammaSpectralCube`
+            Diffuse model spectral cube
+        """
+        filename = FermiVelaRegion.filenames()['background_cube']
         return fits.open(filename)[0]
 
     @staticmethod
