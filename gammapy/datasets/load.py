@@ -30,6 +30,7 @@ included_datasets = ['poisson_stats_image',
                      'diffuse_gamma_spectrum',
                      'electron_spectrum',
                      'FermiGalacticCenter',
+                     'FermiVelaRegion',
                      'fetch_fermi_catalog',
                      'arf_fits_table',
                      'psf_fits_table',
@@ -167,6 +168,41 @@ class FermiGalacticCenter(object):
             Exposure cube
         """
         filename = FermiGalacticCenter.filenames()['exposure_cube']
+        return GammaSpectralCube.read(filename)
+
+
+class FermiVelaRegion(object):
+    """Fermi high-energy data for the Vela region.
+
+    TODO: document energy band, region, content of the files. 
+    TODO: document
+    """
+
+    @staticmethod
+    def filenames():
+        """Dictionary of available file names."""
+        result = dict()
+        result['counts'] = get_pkg_data_filename('data/fermi_vela/counts_vela.fits.gz')
+        result['exposure_cube'] = get_pkg_data_filename('data/fermi_vela/exposure_vela.fits.gz')
+
+        return result
+
+    @staticmethod
+    def counts():
+        """Counts image as `astropy.io.fits.ImageHDU`."""
+        filename = FermiVelaRegion.filenames()['counts']
+        return fits.open(filename)[0]
+
+    @staticmethod
+    def exposure_cube():
+        """Exposure cube.
+
+        Returns
+        -------
+        spectral_cube : `~gammapy.spectral_cube.GammaSpectralCube`
+            Exposure cube
+        """
+        filename = FermiVelaRegion.filenames()['exposure_cube']
         return GammaSpectralCube.read(filename)
 
 
