@@ -11,7 +11,9 @@ Predicting Counts
 
 The example script below computes the Fermi PSF-convolved predicted counts map using `gammapy.spectral_cube`.
 
-TODO: include source
+
+.. plot:: tutorials/npred_convolved.py
+	:include-source:
    
    
 Checks
