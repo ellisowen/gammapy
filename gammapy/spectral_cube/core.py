@@ -367,9 +367,14 @@ class GammaSpectralCube(object):
 
         reference = reference_cube.data
         shape_out = reference[0].shape
-        wcs_in = self.wcs.dropaxis(2)
-        wcs_out = reference_cube.wcs.dropaxis(2)
-
+        try:
+            wcs_in = self.wcs.dropaxis(2)
+        except:
+            wcs_in = self.wcs
+        try:
+            wcs_out = reference_cube.wcs.dropaxis(2)
+        except:
+            wcs_out = reference_cube.wcs
         energy = self.energy
 
         cube = self.data
@@ -386,10 +391,13 @@ class GammaSpectralCube(object):
         header_out = reference_cube.wcs.to_header()
         # Keep output energy info the same as input, but changes spatial information
         # So need to restore energy parameters to input values here
-        header_out['CRPIX3'] = header_in['CRPIX3']
-        header_out['CDELT3'] = header_in['CDELT3']
-        header_out['CTYPE3'] = header_in['CTYPE3']
-        header_out['CRVAL3'] = header_in['CRVAL3']
+        try:
+            header_out['CRPIX3'] = header_in['CRPIX3']
+            header_out['CDELT3'] = header_in['CDELT3']
+            header_out['CTYPE3'] = header_in['CTYPE3']
+            header_out['CRVAL3'] = header_in['CRVAL3']
+        except:
+            pass
 
         wcs_out = WCS(header_out)
 

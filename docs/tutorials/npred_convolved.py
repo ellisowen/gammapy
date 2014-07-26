@@ -1,16 +1,49 @@
-"""Runs commands to produce convolved predicted counts map in current directory"""
+"""Runs commands to produce convolved predicted counts map in current directory
+"""
+
 from gammapy.spectral_cube import compute_npred_cube, GammaSpectralCube, convolve_npred_cube
 from astropy.units import Quantity
-background_model = GammaSpectralCube.read('/home/eowen/analyses/galactic_high_energy/gll_iem_v05.fits')
-exposure_cube = GammaSpectralCube.read('exposure_cube_lowres.fits')
-print('Reprojecting Background Cube')
-repro_bg_cube = background_model.reproject_to(exposure_cube)
+from gammapy.datasets.load import get_fermi_diffuse_background_model
+from gammapy.datasets import FermiGalacticCenter
+from gammapy.stats import significance
+from gammapy.image.utils import disk_correlate
+from astropy.io import fits
+from astropy.wcs import WCS
+from astropy.units import Quantity
+import numpy as np
 
-energies = Quantity([10, 30, 100, 500], 'GeV')
-print('Generating Predicted Counts Cube')
+background_file = get_fermi_diffuse_background_model()
+exposure_file = FermiGalacticCenter.filenames()['exposure_cube']
+counts_file = FermiGalacticCenter.filenames()['counts']
+
+
+background_model = GammaSpectralCube.read(background_file)
+exposure_cube = GammaSpectralCube.read(exposure_file)
+repro_bg_cube = background_model.reproject_to(exposure_cube)
+energies = Quantity([10000, 10000000], 'MeV')
 npred_cube = compute_npred_cube(repro_bg_cube, exposure_cube, energies)
-npred_cube.write_to_fits('npred_cube.fits')
-print('Convolving npred Cube')
 convolved_npred_cube = convolve_npred_cube(npred_cube, 3, 0.1)
-convolved_npred_cube.write_to_fits('convolved_npred_cube.fits')
-print('Done')
+
+counts_array = fits.open(counts_file)[1].data
+counts_data = np.zeros([1, counts_array.shape[0], counts_array.shape[1]])
+counts_data[0] = counts_array
+
+counts_wcs = WCS(fits.open(counts_file)[1].header)
+
+counts_cube = GammaSpectralCube(data = Quantity(counts_data, ''), wcs = counts_wcs, energy = energies)
+counts_cube = counts_cube.reproject_to(npred_cube)
+
+counts = np.nan_to_num(counts_cube.data[0])
+model = np.nan_to_num(convolved_npred_cube.data[0])
+
+correlation_radius = 3
+correlated_counts = disk_correlate(counts, correlation_radius)
+correlated_model = disk_correlate(model, correlation_radius)
+
+excess = correlated_counts - correlated_model
+
+significance = significance(correlated_counts, correlated_model, method='lima')
+
+# Then plots results
+
+import IPython; IPython.embed()
