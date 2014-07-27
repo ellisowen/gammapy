@@ -68,19 +68,19 @@ class TestFermiVelaRegion():
 
     def test_counts(self):
         counts = FermiVelaRegion.counts()
-        assert counts.data.shape == (10, 10, 10) 
-        assert counts.data.sum() == 4749
+        assert counts.data.shape == (3, 50, 50) 
+        assert counts.data.sum() == 310
 
     def test_background_cube(self):
         background = FermiVelaRegion.background_cube()
-        assert background.data.shape == (10, 10) 
-        assert_allclose(background.data.sum(), 3289.8008)
+        assert background.data.shape == (50, 50) 
+        assert_allclose(background.data.sum(), 384.84128)
 
     def test_exposure_cube(self):
         exposure_cube = FermiVelaRegion.exposure_cube()
-        assert exposure_cube.data.shape == (11, 10, 10)
-        assert_quantity(exposure_cube.data.sum(), Quantity(135549411131392.0, '1 / (cm2 MeV s sr)'))
-        assert_quantity(exposure_cube.energy[0], Quantity(50, 'MeV'))
+        assert exposure_cube.data.shape == (4, 50, 50)
+        assert_quantity(exposure_cube.data.sum(), Quantity(1.4978096e+15, '1 / (cm2 MeV s sr)'))
+        assert_quantity(exposure_cube.energy[0], Quantity(10000, 'MeV'))
 
 
 @remote_data
