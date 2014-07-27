@@ -23,7 +23,6 @@ For small regions, the predicted counts cube and significance images may be chec
 energy band with the following parameters:
 
 The gtmodel result from 4 years of LAT data can be reproduced with the following commands... TODO...
-
 From the predicted counts and observed counts, a Li & Ma significance image [LiMa1983] and excess image are produced.
  
 TODO: include source

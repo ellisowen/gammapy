@@ -20,7 +20,7 @@ counts_file = FermiVelaRegion.filenames()['counts']
 background_model = GammaSpectralCube.read(background_file)
 exposure_cube = GammaSpectralCube.read(exposure_file)
 repro_bg_cube = background_model.reproject_to(exposure_cube)
-energies = Quantity([10000, 10000000], 'MeV')
+energies = Quantity([10000, 5000000], 'MeV')
 npred_cube = compute_npred_cube(repro_bg_cube, exposure_cube, energies)
 convolved_npred_cube = convolve_npred_cube(npred_cube, 3, 0.1)
 
@@ -33,14 +33,43 @@ counts = np.nan_to_num(counts_cube.data[0])
 model = np.nan_to_num(convolved_npred_cube.data[0])
 
 correlation_radius = 3
+gtmodel = fits.open(FermiVelaRegion.filenames()['background_cube'])[0].data.astype(float)
+correlated_gtmodel = disk_correlate(gtmodel, correlation_radius)
 correlated_counts = disk_correlate(counts, correlation_radius)
 correlated_model = disk_correlate(model, correlation_radius)
 
-significance = significance(correlated_counts, correlated_model, method='lima')
+# Fermi significance
+fermi_significance = np.nan_to_num(significance(correlated_counts, correlated_gtmodel, method='lima'))
+# Gammapy significance
+significance = np.nan_to_num(significance(correlated_counts, correlated_model, method='lima'))
+# Ratio values
+ratio = np.nan_to_num(significance/fermi_significance)
 
-fig = plt.imshow(significance)
-fig.colorbar
-fig.axes.set_visible('False')
-
-# Then plots results
+# Plotting
+vmin, vmax = -3, 3
+fig, axes = plt.subplots(nrows=1, ncols=3)
+im = axes.flat[0].imshow(significance,
+                         interpolation='nearest',
+                         origin="lower", vmin=vmin, vmax=vmax,
+                         cmap=plt.get_cmap())
+axes.flat[0].set_title('Gammapy Significance', fontsize=12)
+im = axes.flat[1].imshow(fermi_significance,
+                         interpolation='nearest',
+                         origin="lower", vmin=vmin, vmax=vmax,
+                         cmap=plt.get_cmap())
+axes.flat[1].set_title('Fermi Tools Significance', fontsize=12)
+im = axes.flat[2].imshow(ratio,
+                         interpolation='nearest',
+                         origin="lower", vmin=vmin, vmax=vmax,
+                         cmap=plt.get_cmap())
+axes.flat[2].set_title('Ratio: \n Gammapy/Fermi Tools', fontsize=12)
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([0.85, 0.3, 0.025, 0.4])
+fig.colorbar(im, cax=cbar_ax)
+a = fig.get_axes()[0]
+b = fig.get_axes()[1]
+c = fig.get_axes()[2]
+a.set_axis_off()
+b.set_axis_off()
+c.set_axis_off()
 
