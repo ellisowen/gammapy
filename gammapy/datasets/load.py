@@ -182,9 +182,9 @@ class FermiVelaRegion(object):
     def filenames():
         """Dictionary of available file names."""
         result = dict()
-        result['counts'] = get_pkg_data_filename('data/fermi_vela/counts_vela.fits.gz')
-        result['exposure_cube'] = get_pkg_data_filename('data/fermi_vela/exposure_vela.fits.gz')
-        result['background_cube'] = get_pkg_data_filename('data/fermi_vela/background_vela.fits.gz')
+        result['counts'] = get_pkg_data_filename('data/fermi_vela/counts_vela.fits')
+        result['exposure_cube'] = get_pkg_data_filename('data/fermi_vela/exposure_vela.fits')
+        result['background_cube'] = get_pkg_data_filename('data/fermi_vela/background_vela.fits')
 
         return result
 
