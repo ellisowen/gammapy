@@ -23,6 +23,7 @@ from ..spectrum import (LogEnergyAxis,
 from ..image.utils import coordinates
 from ..irf import EnergyDependentTablePSF
 from ..image import cube_to_image
+from ..image import solid_angle
 
 
 __all__ = ['GammaSpectralCube', 'compute_npred_cube', 'convolve_npred_cube']
@@ -215,21 +216,17 @@ class GammaSpectralCube(object):
     def solid_angle_image(self):
         """Solid angle image.
 
-        TODO: currently uses CDELT1 x CDELT2, which only
-              works for cartesian images near the equator.
-
         Returns
         -------
         solid_angle_image : `~astropy.units.Quantity`
             Solid angle image (steradian)
         """
-        cdelt = self.wcs.wcs.cdelt
-        solid_angle = np.abs(cdelt[0]) * np.abs(cdelt[1])
-        shape = self.data.shape[1:]
-        solid_angle = solid_angle * np.ones(shape, dtype=float)
-        solid_angle = Quantity(solid_angle, 'deg^2')
+        cube_hdu = fits.ImageHDU(self.data, self.wcs.to_header())
+        image_hdu = cube_to_image(cube_hdu)
+        image_hdu.header['WCSAXES'] = 2
+        solid_angle_array = solid_angle(image_hdu)
 
-        return solid_angle.to('steradian')
+        return Quantity(solid_angle_array.value, 'deg2').to('steradian')
 
     def flux(self, lon, lat, energy):
         """Differential flux (linear interpolation).

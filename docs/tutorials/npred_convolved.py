@@ -13,16 +13,16 @@ from astropy.units import Quantity
 import numpy as np
 import matplotlib.pyplot as plt
 
-background_file = get_fermi_diffuse_background_model()
+background_file = get_fermi_diffuse_background_model(filename='gll_iem_v05_rev1.fit')
 exposure_file = FermiVelaRegion.filenames()['exposure_cube']
 counts_file = FermiVelaRegion.filenames()['counts']
-
+# BACKGROUND MODEL .XML FILE SHOULD JUST HAVE THE FERMI DIFFUSE MODEL...
 background_model = GammaSpectralCube.read(background_file)
 exposure_cube = GammaSpectralCube.read(exposure_file)
 repro_bg_cube = background_model.reproject_to(exposure_cube)
-energies = Quantity([10000, 5000000], 'MeV')
+energies = Quantity([10000, 500000], 'MeV')
 npred_cube = compute_npred_cube(repro_bg_cube, exposure_cube, energies)
-convolved_npred_cube = convolve_npred_cube(npred_cube, 3, 0.1)
+convolved_npred_cube = convolve_npred_cube(npred_cube, 3, 1)
 
 counts_data = fits.open(counts_file)[0].data
 counts_wcs = WCS(fits.open(counts_file)[0].header)
@@ -43,17 +43,17 @@ fermi_significance = np.nan_to_num(significance(correlated_counts, correlated_gt
 # Gammapy significance
 significance = np.nan_to_num(significance(correlated_counts, correlated_model, method='lima'))
 # Ratio values
-ratio = np.nan_to_num(significance/fermi_significance)
+ratio = np.nan_to_num(correlated_model/correlated_gtmodel)
 
 # Plotting
-vmin, vmax = -3, 3
+vmin, vmax = 0, 10
 fig, axes = plt.subplots(nrows=1, ncols=3)
-im = axes.flat[0].imshow(significance,
+im = axes.flat[0].imshow(correlated_model,
                          interpolation='nearest',
                          origin="lower", vmin=vmin, vmax=vmax,
                          cmap=plt.get_cmap())
 axes.flat[0].set_title('Gammapy Significance', fontsize=12)
-im = axes.flat[1].imshow(fermi_significance,
+im = axes.flat[1].imshow(correlated_gtmodel,
                          interpolation='nearest',
                          origin="lower", vmin=vmin, vmax=vmax,
                          cmap=plt.get_cmap())
@@ -72,4 +72,4 @@ c = fig.get_axes()[2]
 a.set_axis_off()
 b.set_axis_off()
 c.set_axis_off()
-
+import IPython; IPython.embed()
