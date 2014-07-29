@@ -18,27 +18,26 @@ exposure_file = FermiVelaRegion.filenames()['exposure_cube']
 counts_file = FermiVelaRegion.filenames()['counts']
 background_model = GammaSpectralCube.read(background_file)
 exposure_cube = GammaSpectralCube.read(exposure_file)
+# Reproject background cube
 repro_bg_cube = background_model.reproject_to(exposure_cube)
+# Define energy band required for output
 energies = Quantity([10000, 500000], 'MeV')
 npred_cube = compute_npred_cube(repro_bg_cube, exposure_cube, energies)
+# Convolve with Energy-dependent Fermi LAT PSF
 convolved_npred_cube = convolve_npred_cube(npred_cube, 3, 1)
-
+# Counts data
 counts_data = fits.open(counts_file)[0].data
 counts_wcs = WCS(fits.open(counts_file)[0].header)
-counts_cube = GammaSpectralCube(data = Quantity(counts_data, ''), wcs = counts_wcs, energy = energies)
+counts_cube = GammaSpectralCube(data=Quantity(counts_data, ''), wcs=counts_wcs,
+                                energy=energies)
 counts_cube = counts_cube.reproject_to(npred_cube)
 
 counts = np.nan_to_num(counts_cube.data[0])
 model = np.nan_to_num(convolved_npred_cube.data[0])
-
-correlation_radius = 3
+# Load Fermi tools gtmodel result
 gtmodel = fits.open(FermiVelaRegion.filenames()['background_cube'])[0].data.astype(float)
-correlated_gtmodel = disk_correlate(gtmodel, correlation_radius)
-correlated_counts = disk_correlate(counts, correlation_radius)
-correlated_model = disk_correlate(model, correlation_radius)
-
-ratio = np.nan_to_num(model/gtmodel)
-
+# Ratio for the two background images
+ratio = np.nan_to_num(model / gtmodel)
 # Plotting
 vmin, vmax = 0, 1
 fig, axes = plt.subplots(nrows=1, ncols=3)
