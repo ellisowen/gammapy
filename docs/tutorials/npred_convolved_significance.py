@@ -14,8 +14,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 background_file = get_fermi_diffuse_background_model(filename='gll_iem_v05_rev1.fit')
+#background_file = FermiVelaRegion.filenames()['background_cube']
 exposure_file = FermiVelaRegion.filenames()['exposure_cube']
 counts_file = FermiVelaRegion.filenames()['counts']
+# BACKGROUND MODEL .XML FILE SHOULD JUST HAVE THE FERMI DIFFUSE MODEL...
 background_model = GammaSpectralCube.read(background_file)
 exposure_cube = GammaSpectralCube.read(exposure_file)
 repro_bg_cube = background_model.reproject_to(exposure_cube)
@@ -37,21 +39,26 @@ correlated_gtmodel = disk_correlate(gtmodel, correlation_radius)
 correlated_counts = disk_correlate(counts, correlation_radius)
 correlated_model = disk_correlate(model, correlation_radius)
 
-ratio = np.nan_to_num(model/gtmodel)
+# Fermi significance
+fermi_significance = np.nan_to_num(significance(correlated_counts, gtmodel, method='lima'))
+# Gammapy significance
+significance = np.nan_to_num(significance(correlated_counts, correlated_model, method='lima'))
+# Ratio values
+ratio = np.nan_to_num(significance/fermi_significance)
 
 # Plotting
-vmin, vmax = 0, 1
+vmin, vmax = 0, 10
 fig, axes = plt.subplots(nrows=1, ncols=3)
-im = axes.flat[0].imshow(model,
+im = axes.flat[0].imshow(significance,
                          interpolation='nearest',
                          origin="lower", vmin=vmin, vmax=vmax,
                          cmap=plt.get_cmap())
-axes.flat[0].set_title('Gammapy Background', fontsize=12)
-im = axes.flat[1].imshow(gtmodel,
+axes.flat[0].set_title('Gammapy Significance', fontsize=12)
+im = axes.flat[1].imshow(fermi_significance,
                          interpolation='nearest',
                          origin="lower", vmin=vmin, vmax=vmax,
                          cmap=plt.get_cmap())
-axes.flat[1].set_title('Fermi Tools Background', fontsize=12)
+axes.flat[1].set_title('Fermi Tools Significance', fontsize=12)
 im = axes.flat[2].imshow(ratio,
                          interpolation='nearest',
                          origin="lower", vmin=vmin, vmax=vmax,

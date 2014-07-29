@@ -14,6 +14,8 @@ The example script below computes the Fermi PSF-convolved predicted counts map u
 
 .. plot:: tutorials/npred_convolved.py
 	:include-source:
+	
+.. plot:: tutorials/npred_convolved_significance.py
    
    
 Checks
