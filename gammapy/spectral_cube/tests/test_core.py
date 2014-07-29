@@ -150,33 +150,24 @@ def test_compute_npred_cube():
     energy_bounds = Quantity([10, 30, 100, 500], 'GeV')
     # Reproject spectral cube onto exposure cube
     spectral_cube = spectral_cube.reproject_to(exposure_cube)
+    expected_sum = spectral_cube.data.sum()
     # Compute npred cube
     npred_cube = compute_npred_cube(spectral_cube,
                                     exposure_cube,
                                     energy_bounds)
+    actual_sum = npred_cube.data.sum()
+    # Check npredicted are approximately the same as true counts
+    assert_allclose(expected_sum, actual_sum, rtol=0.1)
     # PSF convolve the npred cube
     npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=5,
                                                resolution=1)
-
+    actual_convolved_sum = npred_cube_convolved.data.sum()
+    # Check sum is the same after convolution
+    assert_allclose(actual_sum, actual_convolved_sum, rtol=0.01)
     # Test shape
     expected = ((len(energy_bounds) - 1, exposure_cube.data.shape[1],
                  exposure_cube.data.shape[2]))
     actual = npred_cube_convolved.data.shape
-    assert_allclose(actual, expected)
-
-    # Test some values
-    expected = 0.0
-    # This should be just outside the original image, so zero after
-    # reprojection
-    actual = npred_cube_convolved.data[0][3][3]
-    assert_allclose(actual, expected)
-    # This should be just inside the original image
-    expected = 0.017327201762537738
-    actual = npred_cube_convolved.data[0][3][4]
-    assert_allclose(actual, expected)
-    # Check the sum remains the same
-    expected = 15867.871047628047
-    actual = npred_cube_convolved.data.sum()
     assert_allclose(actual, expected)
 
 
