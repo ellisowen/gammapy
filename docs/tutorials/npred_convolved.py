@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 background_file = get_fermi_diffuse_background_model(filename='gll_iem_v05_rev1.fit')
+#background_file = FermiVelaRegion.filenames()['background_cube']
 exposure_file = FermiVelaRegion.filenames()['exposure_cube']
 counts_file = FermiVelaRegion.filenames()['counts']
 # BACKGROUND MODEL .XML FILE SHOULD JUST HAVE THE FERMI DIFFUSE MODEL...
@@ -72,4 +73,3 @@ c = fig.get_axes()[2]
 a.set_axis_off()
 b.set_axis_off()
 c.set_axis_off()
-import IPython; IPython.embed()
