@@ -128,8 +128,8 @@ class TestGammaSpectralCube(object):
         assert_allclose(actual, expected)
 
     def test_solid_angle_image(self):
-        actual = self.spectral_cube.solid_angle_image
-        expected = Quantity(7.61543549e-05 * np.ones((21, 61)), 'steradian')
+        actual = self.spectral_cube.solid_angle_image[10][30]
+        expected = Quantity(7.615363001210512e-05, 'steradian')
         assert_quantity(actual, expected)
 
     def test_spatial_coordinate_images(self):
@@ -147,23 +147,24 @@ def test_compute_npred_cube():
     filenames = FermiGalacticCenter.filenames()
     spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
     exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
+    counts_cube = FermiGalacticCenter.counts()
     energy_bounds = Quantity([10, 30, 100, 500], 'GeV')
     # Reproject spectral cube onto exposure cube
     spectral_cube = spectral_cube.reproject_to(exposure_cube)
-    expected_sum = spectral_cube.data.sum()
     # Compute npred cube
     npred_cube = compute_npred_cube(spectral_cube,
                                     exposure_cube,
                                     energy_bounds)
-    actual_sum = npred_cube.data.sum()
-    # Check npredicted are approximately the same as true counts
-    assert_allclose(expected_sum, actual_sum, rtol=0.1)
+    expected_sum = counts_cube.data.sum()
+    actual_sum = np.nan_to_num(npred_cube.data).sum()
+    # Check npredicted is same order of magnitude of true counts
+    assert_allclose(expected_sum, actual_sum, rtol=1)
     # PSF convolve the npred cube
-    npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=5,
-                                               resolution=1)
+    npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=3,
+                                               resolution=0.1)
     actual_convolved_sum = npred_cube_convolved.data.sum()
     # Check sum is the same after convolution
-    assert_allclose(actual_sum, actual_convolved_sum, rtol=0.01)
+    assert_allclose(actual_sum, actual_convolved_sum, rtol=0.1)
     # Test shape
     expected = ((len(energy_bounds) - 1, exposure_cube.data.shape[1],
                  exposure_cube.data.shape[2]))

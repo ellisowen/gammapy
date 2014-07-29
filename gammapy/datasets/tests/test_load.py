@@ -74,7 +74,7 @@ class TestFermiVelaRegion():
     def test_background_cube(self):
         background = FermiVelaRegion.background_cube()
         assert background.data.shape == (50, 50) 
-        assert_allclose(background.data.sum(), 384.84128)
+        assert_allclose(background.data.sum(), 351.66653)
 
     def test_exposure_cube(self):
         exposure_cube = FermiVelaRegion.exposure_cube()
