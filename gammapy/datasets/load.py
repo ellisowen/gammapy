@@ -182,9 +182,18 @@ class FermiVelaRegion(object):
     def filenames():
         """Dictionary of available file names."""
         result = dict()
-        result['counts'] = get_pkg_data_filename('data/fermi_vela/counts_vela.fits')
-        result['exposure_cube'] = get_pkg_data_filename('data/fermi_vela/exposure_vela.fits')
-        result['background_cube'] = get_pkg_data_filename('data/fermi_vela/background_vela.fits')
+        
+        BASE_URL = 'https://github.com/gammapy/gammapy-extra/tree/vela_data/datasets/vela_region/'
+        url_counts = BASE_URL + 'counts_vela.fits'
+        filename_counts = data.download_file(url_counts, cache=True)
+        url_exposure = BASE_URL + 'exposure_vela.fits'
+        filename_exposure = data.download_file(url_exposure, cache=True)
+        url_background = BASE_URL + 'background_vela.fits'
+        filename_background = data.download_file(url_background, cache=True)
+        
+        result['counts'] = get_pkg_data_filename(filename_counts)
+        result['exposure_cube'] = get_pkg_data_filename(filename_exposure)
+        result['background_cube'] = get_pkg_data_filename(filename_background)
 
         return result
 

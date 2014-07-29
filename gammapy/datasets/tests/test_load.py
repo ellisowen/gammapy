@@ -62,20 +62,24 @@ class TestFermiGalacticCenter():
 
 class TestFermiVelaRegion():
 
+    @remote_data
     def test_filenames(self):
         filenames = FermiVelaRegion.filenames()
         assert isinstance(filenames, dict)
 
+    @remote_data
     def test_counts(self):
         counts = FermiVelaRegion.counts()
         assert counts.data.shape == (3, 50, 50) 
         assert counts.data.sum() == 310
 
+    @remote_data
     def test_background_cube(self):
         background = FermiVelaRegion.background_cube()
         assert background.data.shape == (50, 50) 
         assert_allclose(background.data.sum(), 351.66653)
 
+    @remote_data
     def test_exposure_cube(self):
         exposure_cube = FermiVelaRegion.exposure_cube()
         assert exposure_cube.data.shape == (4, 50, 50)
