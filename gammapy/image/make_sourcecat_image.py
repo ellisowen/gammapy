@@ -9,6 +9,7 @@ from ..image.utils import make_header, disk_correlate, fermipsf_correlate, gauss
 from ..datasets.load import fetch_fermi_extended_soruces
 from ..image import coordinates
 from ..catalog.utils import catalog_table
+from astropy.wcs import WCS
 
 
 def reference_image(resolution, latitudes, longitudes, center=[0,0], units='ph/cm2/s/sr'):
@@ -39,40 +40,21 @@ def catalog_image(psf='Fermi', resolution=0.1, center=[0, 0], lat_range=[0, 180]
         # Otherwise, all of the flux will be placed into the reference pixel to be later PSF convolved with the defined PSF
         # Hence original reference empty image is called
         new_image = im_1 = im_2 = im_3 = reference.data
-    print len(sources)
     total_point_image = fits.ImageHDU(header=reference.header, data=new_image)
-    from astropy.wcs import WCS
+    
     wcs = WCS(total_point_image.header)
     new_image = np.zeros_like(total_point_image.data, dtype=np.float64)
     for source in sources:
-        source_type = 'PointSource'#source_table['Source_Type'][source]
-        print source
         if source_type == 'ExtendedSource':
-            raise NotImplementedError
-            # This needs more work...
-            #image = source_table['Image'][source]
-            #image.data = (image.data * solid_angle(image).value.mean()) / 1000000000000  # TODO: fix this hack... units???
-            #resample_factor1 = np.round(reference.header['CDELT1'] / image.header['CDELT1'])
-            #resample_factor2 = np.round(reference.header['CDELT2'] / image.header['CDELT2'])
-            #block_factors = np.array([resample_factor1, resample_factor2])  # TODO: fix this approximation... kapteyn image utils reprojectto?
-            #resampled_image = block_reduce_hdu(image, block_factors, np.sum)
-            #paste_cutout_into_image(total_point_image, resampled_image)
+            # TODO
+            ""
         elif source_type == 'PointSource':
             lon = source_table['GLON'][source]
             lat = source_table['GLAT'][source]
             flux = source_table['Flux'][source]
-            precise = False
-            if precise:
-                raise NotImplementedError
-            else:
-                #print(lon, lat)
-                #import IPython; IPython.embed()
-                print lon, lat
-                x, y = wcs.wcs_world2pix(lon, lat, 0)
-                print x, y
-                # TODO: check if this is 0.5 or 1 pix off
-                xi, yi = x.astype(int), y.astype(int)
-                new_image[yi, xi] += flux
+            x, y = wcs.wcs_world2pix(lon, lat, 0)
+            xi, yi = x.astype(int), y.astype(int)
+            new_image[yi, xi] += flux
     total_point_image = fits.ImageHDU(header=reference.header, data=new_image)
     # Ensure flux or counts remain the same
     if total_flux == 'True':
@@ -86,28 +68,11 @@ def catalog_image(psf='Fermi', resolution=0.1, center=[0, 0], lat_range=[0, 180]
     elif psf == 'Disk':
         new_image = disk_correlate((new_image/new_image.sum()), 2)
     elif psf == 'Fermi':
-        print "Original Flux"
-        print new_image.sum()
         new_image = fermipsf_correlate(new_image, 5)
-        print "PSF Convolved Flux"
-        print new_image.sum()
     header = reference.header
     image = fits.ImageHDU(data=new_image, header=header)
     image.writeto(filename, clobber=True)
-    # TODO: Implement these lines as part of energy binning
-    #factor_1 = source_table['Flux10_30GeV'].sum()/im_1.sum()
-    #im_1 =  gauss_correlate((im_1) * factor_1, 3)
-    #image1 = fits.ImageHDU(data=im_1, header=header)
-    #factor_2 = source_table['Flux30_100GeV'].sum()/im_2.sum()
-    #im_2 =  gauss_correlate((im_2) * factor_2, 3)
-    #image2 = fits.ImageHDU(data=im_2, header=header)
-    #factor_3 = source_table['Flux100_500GeV'].sum()/im_3.sum()
-    #im_3 =  gauss_correlate((im_3) * factor_3, 3)
-    #image3 = fits.ImageHDU(data=im_3, header=header)
-    # Also for energy binning
-    # hdu_list = [image1, image2, image3]
-    #cube_hdu = images_to_cube(hdu_list)
-    #cube_hdu.writeto('1fhl_cube_gauss_2.fits', clobber=True) 
+ 
 
 def catalog_to_table(catalog):
     """ TODO
