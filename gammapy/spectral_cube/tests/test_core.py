@@ -128,8 +128,8 @@ class TestGammaSpectralCube(object):
         assert_allclose(actual, expected)
 
     def test_solid_angle_image(self):
-        actual = self.spectral_cube.solid_angle_image
-        expected = Quantity(7.61543549e-05 * np.ones((30, 21)), 'steradian')
+        actual = self.spectral_cube.solid_angle_image[10][30]
+        expected = Quantity(7.615363001210512e-05, 'steradian')
         assert_quantity(actual, expected)
 
     def test_spatial_coordinate_images(self):
@@ -140,32 +140,76 @@ class TestGammaSpectralCube(object):
 
         # TODO assert the four corner values
 
+
 @pytest.mark.skipif('not HAS_SCIPY')
 def test_compute_npred_cube():
-    # TODO: copy over example
-    pass
+    # A quickly implemented check - should be improved
+    filenames = FermiGalacticCenter.filenames()
+    spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
+    exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
+    counts_cube = FermiGalacticCenter.counts()
+    energy_bounds = Quantity([10, 30, 100, 500], 'GeV')
+    # Reproject spectral cube onto exposure cube
+    spectral_cube = spectral_cube.reproject_to(exposure_cube)
+    # Compute npred cube
+    npred_cube = compute_npred_cube(spectral_cube,
+                                    exposure_cube,
+                                    energy_bounds)
+    expected_sum = counts_cube.data.sum()
+    actual_sum = np.nan_to_num(npred_cube.data).sum()
+    # Check npredicted is same order of magnitude of true counts
+    assert_allclose(expected_sum, actual_sum, rtol=1)
+    # PSF convolve the npred cube
+    npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=3,
+                                               resolution=0.1)
+    actual_convolved_sum = npred_cube_convolved.data.sum()
+    # Check sum is the same after convolution
+    assert_allclose(actual_sum, actual_convolved_sum, rtol=0.1)
+    # Test shape
+    expected = ((len(energy_bounds) - 1, exposure_cube.data.shape[1],
+                 exposure_cube.data.shape[2]))
+    actual = npred_cube_convolved.data.shape
+    assert_allclose(actual, expected)
 
 
-# TODO: test PSF convolution
-@pytest.mark.xfail
 @pytest.mark.skipif('not HAS_SCIPY')
 def test_convolve_npred_cube():
-    spectral_cube = FermiGalacticCenter.diffuse_model()
-    image = spectral_cube.data[0].value
-    energy = 1000
-    correlated_image_energy = convolve_npred_cube(image, max_offset=5, resolution=1, energy=energy)
-    correlated_image_band = convolve_npred_cube(image, max_offset=5, resolution=1, energy_band=[10, 500])
+    filenames = FermiGalacticCenter.filenames()
+    spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
+    exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
+    energy_bounds = Quantity([10, 30, 100, 500], 'GeV')
+    # Reproject spectral cube onto exposure cube
+    spectral_cube = spectral_cube.reproject_to(exposure_cube)
+    # Compute npred cube
+    npred_cube = compute_npred_cube(spectral_cube,
+                                    exposure_cube,
+                                    energy_bounds)
+    # PSF convolve the npred cube
+    npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=5,
+                                               resolution=1)
+    expected = npred_cube.data.sum()
+    actual = npred_cube_convolved.data.sum()
 
-    desired = image.sum()
-    actual_energy = correlated_image_energy.sum()
-    actual_band = correlated_image_band.sum()
+    assert_allclose(actual, expected, rtol=1e-2)
 
-    assert_allclose(actual_energy, desired, rtol=1e-2)
-    assert_allclose(actual_band, desired, rtol=1e-2)
 
 @pytest.mark.skipif('not HAS_REPROJECT')
 def test_reproject_cube():
-    # test sum flux before and after (should be the same)
-    # test size and shape of dimensions before and after
-    # test header parameters before and after
-    pass
+    # TODO: a better test can probably be implemented here to avoid
+    # repeating code
+    filenames = FermiGalacticCenter.filenames()
+    spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
+    exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
+    # Reproject spectral cube onto exposure cube
+    original_cube = Quantity(np.nan_to_num(spectral_cube.data.value),
+                             spectral_cube.data.unit)
+    spectral_cube = spectral_cube.reproject_to(exposure_cube)
+    reprojected_cube = Quantity(np.nan_to_num(spectral_cube.data.value),
+                                spectral_cube.data.unit)
+    # 0.5 degrees per pixel in diffuse model
+    # 2 degrees in reprojection reference
+    # sum of reprojected should be 1/16 of sum of original if flux-preserving
+    expected = 0.0625 * original_cube.sum()
+    actual = reprojected_cube.sum()
+
+    assert_quantity(actual, expected, rtol=1e-2)
