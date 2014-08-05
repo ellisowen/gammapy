@@ -90,8 +90,9 @@ def catalog_image(psf='Fermi', resolution=0.1, center=[0, 0], lat_range=[0, 180]
     
     if total_flux == 'True':
         factor = source_table['Flux'].sum()
-        out_cube.data = (out_cube.data / out_cube.data.sum()) * factor
-        
+        out_cube.data = ((out_cube.data / out_cube.data.sum()) * factor).value
+    else:
+        out_cube.data = out_cube.data.value
     return out_cube
  
 
@@ -136,5 +137,5 @@ def catalog_table(catalog, ebands='No'):
 
 if __name__ == '__main__':
     a = catalog_image(psf='Fermi', resolution=0.1, center=[0, 0], lat_range=[0, 180], lon_range=[0, 360],
-                  catalog='1FHL', source_type='PointSource', total_flux='False', filename='1fhl_fermi_psf.fits', energy = Quantity([10, 500], 'GeV'))
+                  catalog='1FHL', source_type='ExtendedSource', total_flux='False', filename='1fhl_fermi_psf.fits', energy = Quantity([10, 500], 'GeV'))
     import IPython; IPython.embed()
