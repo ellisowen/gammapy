@@ -4,9 +4,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 from astropy.tests.helper import pytest
 from astropy.units import Quantity
-from ...datasets import FermiGalacticCenter
+from ...datasets import FermiGalacticCenter, FermiVelaRegion
 from ..core import GammaSpectralCube, compute_npred_cube, convolve_npred_cube
 from ...utils.testing import assert_quantity
+from gammapy.irf import EnergyDependentTablePSF
 
 
 try:
@@ -142,6 +143,7 @@ class TestGammaSpectralCube(object):
 
 
 @pytest.mark.skipif('not HAS_SCIPY')
+@pytest.mark.skipif('not HAS_REPROJECT')
 def test_compute_npred_cube():
     # A quickly implemented check - should be improved
     filenames = FermiGalacticCenter.filenames()
@@ -160,7 +162,8 @@ def test_compute_npred_cube():
     # Check npredicted is same order of magnitude of true counts
     assert_allclose(expected_sum, actual_sum, rtol=1)
     # PSF convolve the npred cube
-    npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=3,
+    psf = EnergyDependentTablePSF.read(FermiGalacticCenter.filenames()['psf'])
+    npred_cube_convolved = convolve_npred_cube(npred_cube, psf, max_offset=3,
                                                resolution=0.1)
     actual_convolved_sum = npred_cube_convolved.data.sum()
     # Check sum is the same after convolution
@@ -173,6 +176,7 @@ def test_compute_npred_cube():
 
 
 @pytest.mark.skipif('not HAS_SCIPY')
+@pytest.mark.skipif('not HAS_REPROJECT')
 def test_convolve_npred_cube():
     filenames = FermiGalacticCenter.filenames()
     spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
@@ -185,7 +189,8 @@ def test_convolve_npred_cube():
                                     exposure_cube,
                                     energy_bounds)
     # PSF convolve the npred cube
-    npred_cube_convolved = convolve_npred_cube(npred_cube, max_offset=5,
+    psf = EnergyDependentTablePSF.read(FermiGalacticCenter.filenames()['psf'])
+    npred_cube_convolved = convolve_npred_cube(npred_cube, psf, max_offset=5,
                                                resolution=1)
     expected = npred_cube.data.sum()
     actual = npred_cube_convolved.data.sum()
@@ -193,6 +198,7 @@ def test_convolve_npred_cube():
     assert_allclose(actual, expected, rtol=1e-2)
 
 
+@pytest.mark.skipif('not HAS_SCIPY')
 @pytest.mark.skipif('not HAS_REPROJECT')
 def test_reproject_cube():
     # TODO: a better test can probably be implemented here to avoid

@@ -344,11 +344,11 @@ class GammaSpectralCube(object):
 
     def reproject_to(self, reference_cube):
         """
-        Spatially reprojects a GammaSpectralCube onto a reference cube.
+        Spatially reprojects a `GammaSpectralCube` onto a reference cube.
 
         Parameters
         ----------
-        reference_cube : GammaSpectralCube
+        reference_cube : `GammaSpectralCube`
             Reference cube with the desired spatial projection.
         conserve : {'flux', 'surface_brightness'}
             Specify whether reprojection should be flux conserving
@@ -356,11 +356,10 @@ class GammaSpectralCube(object):
 
         Returns
         -------
-        reprojected_cube : GammaSpectralCube
+        reprojected_cube : `GammaSpectralCube`
             Cube spatially reprojected to the reference cube.
         """
-        from reproject.interpolation import reproject_celestial
-
+        from reproject import reproject
         reference = reference_cube.data
         shape_out = reference[0].shape
         try:
@@ -377,10 +376,13 @@ class GammaSpectralCube(object):
         new_cube = np.zeros((cube.shape[0], reference.shape[1],
                              reference.shape[2]))
         energy_slices = np.arange(cube.shape[0])
+        # TODO: Re-implement to reproject cubes directly without needing
+        # to loop over energies here. Errors with reproject when doing this
+        # first need to be understood and fixed. 
         for i in energy_slices:
             array = cube[i]
-            new_cube[i] = reproject_celestial(array.value, wcs_in, wcs_out,
-                                              shape_out)
+            data_in = (array.value, wcs_in)
+            new_cube[i] = reproject(data_in, wcs_out, shape_out)
         new_cube = Quantity(new_cube, array.unit)
         # Create new wcs
         header_in = self.wcs.to_header()
