@@ -201,7 +201,7 @@ class FermiVelaRegion(object):
         url_counts = BASE_URL + 'counts_vela.fits'
         url_exposure = BASE_URL + 'exposure_vela.fits'
         url_background = BASE_URL + 'background_vela.fits'
-        url_diffuse = BASE_URL + 'gll_iem_v05_rev1_cutout.fit'
+        url_diffuse = BASE_URL + 'gll_iem_v05_rev1_cutout.fits'
         url_psf = BASE_URL + 'psf_vela.fits'
 
         result['counts_cube'] = data.download_file(url_counts, cache=True)
