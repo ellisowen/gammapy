@@ -20,6 +20,8 @@ produced using the Fermi Science tools is shown on the right. These results are
 for the Vela region for energies between 10 and 500 GeV.
 
 
+.. literalinclude:: tutorials/npred/npred_general.py
+
 .. plot:: tutorials/npred/npred_convolved_significance.py
 	:include-source:
    
@@ -46,6 +48,7 @@ the differential flux contribution of the Fermi diffuse model gll_iem_v05_rev1.f
 The image on the right shows the ratio.
 
 .. plot:: tutorials/npred/npred_convolved.py
+	:include-source:
 
 We may compare these against the true counts observed by Fermi LAT in this region
 for the same parameters:
