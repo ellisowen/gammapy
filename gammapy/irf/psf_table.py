@@ -209,6 +209,30 @@ class TablePSF(object):
                                          **discretize_model_kwargs)
         return array
 
+    def normalized_kernel(self, pixel_size, offset_max=None,
+                          discretize_model_kwargs=dict(factor=10)):
+        """Make a 2-dimensional normalized kernel image.
+
+        The kernel image is evaluated on a cartesian
+        grid with ``pixel_size`` spacing, not on the sphere.
+
+        Parameters
+        ----------
+        pixel_size : `~astropy.coordinates.Angle` or `~astropy.units.Quantity`
+            Kernel pixel size
+        discretize_model_kwargs : dict
+            Keyword arguments passed to
+            `astropy.convolution.discretize_model`
+
+        Returns
+        -------
+        kernel : `numpy.array`
+            Normalized Kernel 2D image
+        """
+        kernel_array = kernel(self, pixel_size, offset_max=None,
+                              discretize_model_kwargs=dict(factor=10))
+        return kernel_array / kernel_array.sum()
+
     def eval(self, offset, quantity='dp_domega'):
         r"""Evaluate PSF.
 
