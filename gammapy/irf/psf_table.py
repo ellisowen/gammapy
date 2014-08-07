@@ -229,9 +229,8 @@ class TablePSF(object):
         kernel : `numpy.array`
             Normalized Kernel 2D image
         """
-        kernel_array = kernel(self, pixel_size, offset_max=None,
-                              discretize_model_kwargs=dict(factor=10))
-        return kernel_array / kernel_array.sum()
+        kernel_array = self.kernel(pixel_size, offset_max)
+        return kernel_array / kernel_array.value.sum()
 
     def eval(self, offset, quantity='dp_domega'):
         r"""Evaluate PSF.
