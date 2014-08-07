@@ -21,7 +21,7 @@ reference = make_empty_image(lon_pix, lat_pix, resolution, xref=center[0], yref=
 
 psf = EnergyDependentTablePSF.read(FermiGalacticCenter.filenames()['psf'])
 
-image = catalog_image(reference, psf, catalog='1FHL', source_type = 'All',
+image = catalog_image(reference, psf, catalog='1FHL', source_type = 'ExtendedSource',
                   total_flux='False', filename='1fhl_fermi_psf.fits',
                   energy = Quantity([10, 500], 'GeV'))
 import IPython; IPython.embed()
