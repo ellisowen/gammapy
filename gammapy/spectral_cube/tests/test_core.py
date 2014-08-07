@@ -116,7 +116,7 @@ class TestGammaSpectralCube(object):
         denergy = 0.001 * energy
         energy_band = Quantity([energy, energy + denergy])
         dflux = self.spectral_cube.flux(lon, lat, energy)
-        expected = (dflux * denergy).to('cm^-2 s^-1 sr^-1').value
+        expected = (dflux * denergy).to('cm^-2 s^-1 sr^-1')
         actual = self.spectral_cube.integral_flux_image(energy_band).data[0, 0]
         assert_quantity(actual, expected, rtol=1e-3)
 
