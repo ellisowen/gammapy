@@ -19,8 +19,7 @@ methods in `gammapy.spectral_cube`, while a comparison against the significance 
 produced using the Fermi Science tools is shown on the right. These results are
 for the Vela region for energies between 10 and 500 GeV.
 
-
-.. literalinclude:: tutorials/npred/npred_general.py
+.. literalinclude:: npred_general.py
 
 .. plot:: tutorials/npred/npred_convolved_significance.py
 	:include-source:
