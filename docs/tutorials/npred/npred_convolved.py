@@ -8,10 +8,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from gammapy.spectral_cube import (compute_npred_cube, GammaSpectralCube,
                                    convolve_npred_cube)
-from gammapy.datasets.load import get_fermi_diffuse_background_model
-from gammapy.datasets import FermiVelaRegion, FermiGalacticCenter
-from gammapy.stats import significance
-from gammapy.image.utils import disk_correlate
+from gammapy.datasets import FermiVelaRegion
 from gammapy.irf import EnergyDependentTablePSF
 
 # Reads in data
