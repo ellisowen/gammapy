@@ -223,9 +223,8 @@ class GammaSpectralCube(object):
         cube_hdu = fits.ImageHDU(self.data, self.wcs.to_header())
         image_hdu = cube_to_image(cube_hdu)
         image_hdu.header['WCSAXES'] = 2
-        solid_angle_array = solid_angle(image_hdu)
 
-        return Quantity(solid_angle_array.value, 'deg2').to('steradian')
+        return solid_angle(image_hdu)
 
     def flux(self, lon, lat, energy):
         """Differential flux (linear interpolation).
@@ -342,7 +341,7 @@ class GammaSpectralCube(object):
 
         return hdu
 
-    def reproject_to(self, reference_cube):
+    def reproject_to(self, reference_cube, projection_type='flux_conserving'):
         """
         Spatially reprojects a `GammaSpectralCube` onto a reference cube.
 
@@ -350,9 +349,9 @@ class GammaSpectralCube(object):
         ----------
         reference_cube : `GammaSpectralCube`
             Reference cube with the desired spatial projection.
-        conserve : {'flux', 'surface_brightness'}
-            Specify whether reprojection should be flux conserving
-            or surface brightness conserving
+        projection_type : {'nearest-neighbor', 'bilinear',
+            'biquadratic', 'bicubic', 'flux-conserving'}
+            Specify method of reprojection. Default: 'flux_conserving'.
 
         Returns
         -------
@@ -383,7 +382,7 @@ class GammaSpectralCube(object):
         for i in energy_slices:
             array = cube[i]
             data_in = (array.value, wcs_in)
-            new_cube[i] = reproject(data_in, wcs_out, shape_out)
+            new_cube[i] = reproject(data_in, wcs_out, shape_out, projection_type)
         new_cube = Quantity(new_cube, array.unit)
         # Create new wcs
         header_in = self.wcs.to_header()
@@ -466,7 +465,8 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
         exposure = Quantity(exposure_cube.flux(lon, lat, energy_centers[i]).value, 'cm2 s')
         npred_image = int_flux * exposure * solid_angle
         npred_cube[i] = npred_image.to('')
-    npred_cube = GammaSpectralCube(data=np.nan_to_num(npred_cube),
+    npred_cube = np.nan_to_num(npred_cube)
+    npred_cube = GammaSpectralCube(data=npred_cube,
                                    wcs=wcs,
                                    energy=energy_bounds)
     return npred_cube
