@@ -151,9 +151,9 @@ def test_compute_npred_cube():
     exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
     counts_cube = FermiGalacticCenter.counts()
     energy_bounds = Quantity([10, 30, 100, 500], 'GeV')
-    # Reproject spectral cube onto exposure cube
+
     spectral_cube = spectral_cube.reproject_to(exposure_cube)
-    # Compute npred cube
+
     npred_cube = compute_npred_cube(spectral_cube,
                                     exposure_cube,
                                     energy_bounds)
@@ -182,9 +182,9 @@ def test_convolve_npred_cube():
     spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
     exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
     energy_bounds = Quantity([10, 30, 100, 500], 'GeV')
-    # Reproject spectral cube onto exposure cube
+
     spectral_cube = spectral_cube.reproject_to(exposure_cube)
-    # Compute npred cube
+
     npred_cube = compute_npred_cube(spectral_cube,
                                     exposure_cube,
                                     energy_bounds)
@@ -206,7 +206,7 @@ def test_reproject_cube():
     filenames = FermiGalacticCenter.filenames()
     spectral_cube = GammaSpectralCube.read(filenames['diffuse_model'])
     exposure_cube = GammaSpectralCube.read(filenames['exposure_cube'])
-    # Reproject spectral cube onto exposure cube
+
     original_cube = Quantity(np.nan_to_num(spectral_cube.data.value),
                              spectral_cube.data.unit)
     spectral_cube = spectral_cube.reproject_to(exposure_cube)
