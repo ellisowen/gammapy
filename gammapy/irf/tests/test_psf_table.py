@@ -95,6 +95,8 @@ def test_EnergyDependentTablePSF():
     offset = Angle(0.1, 'deg')
     energies = Quantity([1, 2], 'GeV').to('TeV')
     offsets = Angle([0.1, 0.2], 'deg')
+    
+    pixel_size = Angle(0.1, 'deg')
 
     #actual = psf.eval(energy=energy, offset=offset)
     #desired = Quantity(17760.814249206363, 'sr^-1')
@@ -113,6 +115,9 @@ def test_EnergyDependentTablePSF():
     # TODO: test containment_fraction
     # TODO: test info
     # TODO: test plotting methods
+    desired = 1.0
+    actual = psf.normalized_kernel(pixel_size)
+    assert_allclose(actual, desired)
 
 
 def interactive_test():
