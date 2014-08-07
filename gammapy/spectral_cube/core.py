@@ -223,8 +223,8 @@ class GammaSpectralCube(object):
         cube_hdu = fits.ImageHDU(self.data, self.wcs.to_header())
         image_hdu = cube_to_image(cube_hdu)
         image_hdu.header['WCSAXES'] = 2
-
-        return solid_angle(image_hdu)
+        
+        return solid_angle(image_hdu).to('sr')
 
     def flux(self, lon, lat, energy):
         """Differential flux (linear interpolation).
@@ -341,7 +341,7 @@ class GammaSpectralCube(object):
 
         return hdu
 
-    def reproject_to(self, reference_cube, projection_type='flux_conserving'):
+    def reproject_to(self, reference_cube, projection_type='bilinear'):
         """
         Spatially reprojects a `GammaSpectralCube` onto a reference cube.
 
@@ -351,7 +351,7 @@ class GammaSpectralCube(object):
             Reference cube with the desired spatial projection.
         projection_type : {'nearest-neighbor', 'bilinear',
             'biquadratic', 'bicubic', 'flux-conserving'}
-            Specify method of reprojection. Default: 'flux_conserving'.
+            Specify method of reprojection. Default: 'bilinear'.
 
         Returns
         -------
@@ -401,8 +401,27 @@ class GammaSpectralCube(object):
 
         return GammaSpectralCube(new_cube, wcs_out, energy)
 
-    def write_to_fits(self, filename, clobber=False):
-        """Writes GammaSpectralCube to fits.
+    def to_fits(self):
+        """Writes GammaSpectralCube to fits hdu_list.
+
+        Returns
+        -------
+        hdu_list : `astropy.io.fits.HDUList`
+            * hdu_list[0] : `astropy.io.fits.ImageHDU`
+                Image array of data
+            * hdu_list[1] : `astropy.io.fits.BinTableHDU`
+                Table of energies
+        """
+        image = fits.ImageHDU(self.data, self.wcs.to_header())
+        energies = fits.BinTableHDU(data = self.energy, name = 'ENERGIES')
+
+        hdu_list = fits.HDUList([image, energies])
+
+        return hdu_list
+
+
+    def writeto(self, filename, clobber=False):
+        """Writes GammaSpectralCube to fits file.
 
         Parameters
         ----------
@@ -413,7 +432,13 @@ class GammaSpectralCube(object):
             False: returns error if a file exists of the same name in the
             output directory.
         """
-        fits.writeto(filename, self.data, self.wcs.to_header(), clobber=clobber)
+        image = fits.ImageHDU(self.data, self.wcs.to_header())
+        energies = fits.BinTableHDU(data = self.energy, name = 'ENERGIES')
+
+        hdu_list = fits.HDUList([image, energies])
+
+        hdu_list.writeto(filename, clobber)
+        
 
     def __repr__(self):
         # Copied from `spectral-cube` package
@@ -498,11 +523,9 @@ def convolve_npred_cube(npred_cube, psf_object, max_offset, resolution=1):
     indices = np.arange(len(energy) - 1)
     convolved_cube = np.zeros_like(npred_cube.data)
     for i in indices:
-        psf = psf_object.table_psf_in_energy_band(Quantity([energy[i].value,
-                                                            energy[i + 1].value],
-                                                           energy.unit))
-        kernel_array = psf.kernel(pixel_size, offset_max)
-        kernel_image = kernel_array / kernel_array.sum()
+        energy_band = energy[i:i + 2]
+        psf = psf_object.table_psf_in_energy_band(energy_band)
+        kernel_image = psf.normalized_kernel(pixel_size, offset_max)
         convolved_cube[i] = convolve(npred_cube.data[i], kernel_image,
                                      mode='constant')
     convolved_cube = GammaSpectralCube(data=convolved_cube, wcs=npred_cube.wcs,
