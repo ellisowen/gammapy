@@ -337,7 +337,8 @@ class GammaSpectralCube(object):
         integral_flux = integral_flux.sum(axis=0)
 
         header = self.wcs.sub(['longitude', 'latitude']).to_header()
-        hdu = fits.ImageHDU(data=integral_flux, header=header, name='integral_flux')
+        hdu = fits.ImageHDU(data=Quantity(integral_flux, 'cm^-2 s^-1 sr^-1'),
+                            header=header, name='integral_flux')
 
         return hdu
 
