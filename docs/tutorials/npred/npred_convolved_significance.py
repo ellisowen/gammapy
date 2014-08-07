@@ -25,7 +25,7 @@ significance = np.nan_to_num(significance(correlated_counts, correlated_model,
                                           method='lima'))
 # Plotting
 
-vmin, vmax = 0, 10
+vmin, vmax = 0, 5
 
 fig, axes = plt.subplots(nrows=1, ncols=2)
 
