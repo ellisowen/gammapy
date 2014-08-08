@@ -38,10 +38,12 @@ def _source_image(catalog, reference_cube, sim_hdu_list = None, total_flux = Tru
     energies = source_table.meta['Energy Bins']
     wcs_reference = reference_cube.wcs
     footprint = wcs_reference.calc_footprint()
-    glon_max, glon_min = footprint[0][0], footprint[2][0] - 180
+    glon_max, glon_min = footprint[0][0], footprint[2][0] - 360
     glat_min, glat_max = footprint[0][1], footprint[1][1]
     for source in np.arange(len(source_table['Flux'])):
         lon = source_table['GLON'][source]
+        if lon >= 180:
+            lon = lon - 360
         if (glon_min < lon) & (lon < glon_max):            
             lat = source_table['GLAT'][source]
             if (glat_min < lat) & (lat < glat_max):
@@ -74,7 +76,7 @@ def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
         # TODO: Fix this & add energy output
         new_image = _extended_image(catalog, reference_cube)
     elif source_type == 'point':
-        new_image, energy = _source_image(catalog, reference_cube, filename, total_flux)
+        new_image, energy = _source_image(catalog, reference_cube, sim_hdu_list, total_flux)
     elif source_type == 'all':
         raise NotImplementedError
         # Currently Extended Sources do not work
