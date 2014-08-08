@@ -120,7 +120,7 @@ def test_EnergyDependentTablePSF():
     desired = 1.0
     energy_band = Quantity([10, 500], 'GeV')
     psf_band = psf.table_psf_in_energy_band(energy_band)
-    actual = psf_band.normalized_kernel(pixel_size, pixel_size).value.sum()
+    actual = psf_band.kernel(pixel_size, pixel_size, normalise=True).value.sum()
 
     assert_allclose(actual, desired)
 
