@@ -201,13 +201,15 @@ class FermiVelaRegion(object):
         url_counts = BASE_URL + 'counts_vela.fits'
         url_exposure = BASE_URL + 'exposure_vela.fits'
         url_background = BASE_URL + 'background_vela.fits'
-        url_diffuse = BASE_URL + 'gll_iem_v05_rev1_cutout.fit'
+        url_diffuse = BASE_URL + 'gll_iem_v05_rev1_cutout.fits'
+        url_events = BASE_URL + 'events_vela.fits'
         url_psf = BASE_URL + 'psf_vela.fits'
 
         result['counts_cube'] = data.download_file(url_counts, cache=True)
         result['exposure_cube'] = data.download_file(url_exposure, cache=True)
         result['background_image'] = data.download_file(url_background, cache=True)
         result['diffuse_model'] = data.download_file(url_diffuse, cache=True)
+        result['events'] = data.download_file(url_events, cache=True)
         result['psf'] = data.download_file(url_psf, cache=True)
         return result
 
@@ -261,6 +263,18 @@ class FermiVelaRegion(object):
         """
         filename = FermiVelaRegion.filenames()['background_image']
         return fits.open(filename)[0]
+    
+    @staticmethod
+    def events():
+        """Fermi Events list for Vela Region.
+
+        Returns
+        -------
+        hdu_list : `astropy.io.fits.HDUList`.
+            Events list.
+        """
+        filename = FermiVelaRegion.filenames()['events']
+        return fits.open(filename)
 
     @staticmethod
     def exposure_cube():
