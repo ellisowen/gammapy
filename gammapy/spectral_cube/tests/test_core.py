@@ -6,8 +6,11 @@ from astropy.tests.helper import pytest
 from astropy.units import Quantity
 from ...datasets import FermiGalacticCenter, FermiVelaRegion
 from ..core import GammaSpectralCube, compute_npred_cube, convolve_npred_cube
+from ...image import solid_angle
+from ...image.utils import make_header, WCS, make_empty_image
+from ...irf import EnergyDependentTablePSF
+from ...spectrum.powerlaw import power_law_eval
 from ...utils.testing import assert_quantity
-from gammapy.irf import EnergyDependentTablePSF
 
 
 try:
@@ -130,7 +133,7 @@ class TestGammaSpectralCube(object):
 
     def test_solid_angle_image(self):
         actual = self.spectral_cube.solid_angle_image[10][30]
-        expected = Quantity(7.615363001210512e-05, 'steradian')
+        expected = Quantity(0.24999762018018362, 'steradian')
         assert_quantity(actual, expected)
 
     def test_spatial_coordinate_images(self):
@@ -174,6 +177,40 @@ def test_compute_npred_cube():
     actual = npred_cube_convolved.data.shape
     assert_allclose(actual, expected)
 
+
+@pytest.mark.skipif('not HAS_SCIPY')
+@pytest.mark.skipif('not HAS_REPROJECT')
+def test_analytical_npred_cube():
+    # Analytical check: g=2, N=1 gives int. flux 0.25 between 1 and 2 (arbitrary units of energy).
+    # Exposure = 1, so solid angle only factor which varies.
+    # Result should be 0.25 * 1 * solid_angle_array
+
+    hdu = make_empty_image(nxpix=10, nypix=10, binsz=1)
+    solid_angle_array = solid_angle(hdu)
+    expected = 0.25 * solid_angle_array.value
+
+    header = make_header(nxpix=10, nypix=10, binsz=1)
+    header['NAXIS'] = 3
+    header['NAXIS3'] = 2
+    header['CDELT3'] = 1
+    header['CRVAL3'] = 1
+    header['CRPIX3'] = 1
+    wcs = WCS(header)
+    data_array = np.ones((2, 10, 10))
+    energies = Quantity([1, 2], 'GeV')
+    exposure_cube = GammaSpectralCube(data=Quantity(data_array, 'cm2 s'),
+                                      wcs=wcs, energy=energies)
+
+    flux = power_law_eval(energies[1], 1, 2, energies[0])
+    flux_array = flux * data_array
+    spectral_cube = GammaSpectralCube(data=flux_array,
+                                      wcs=wcs, energy=energies)
+
+    npred_cube = compute_npred_cube(spectral_cube, exposure_cube, energies)
+
+    actual = npred_cube.data[0]
+    
+    assert_allclose(actual, expected)
 
 @pytest.mark.skipif('not HAS_SCIPY')
 @pytest.mark.skipif('not HAS_REPROJECT')
