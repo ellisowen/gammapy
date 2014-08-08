@@ -2,6 +2,7 @@
 from __future__ import print_function, division
 import numpy as np
 from numpy.testing import assert_allclose
+from astropy.coordinates import Angle
 from astropy.tests.helper import pytest
 from astropy.units import Quantity
 from ...datasets import FermiGalacticCenter, FermiVelaRegion
@@ -166,8 +167,8 @@ def test_compute_npred_cube():
     assert_allclose(expected_sum, actual_sum, rtol=1)
     # PSF convolve the npred cube
     psf = EnergyDependentTablePSF.read(FermiGalacticCenter.filenames()['psf'])
-    npred_cube_convolved = convolve_npred_cube(npred_cube, psf, max_offset=3,
-                                               resolution=0.1)
+    npred_cube_convolved = convolve_npred_cube(npred_cube, psf, offset_max=Angle(3, 'deg'),
+                                               pixel_size=Angle(0.1, 'deg'))
     actual_convolved_sum = npred_cube_convolved.data.sum()
     # Check sum is the same after convolution
     assert_allclose(actual_sum, actual_convolved_sum, rtol=0.1)
@@ -227,8 +228,8 @@ def test_convolve_npred_cube():
                                     energy_bounds)
     # PSF convolve the npred cube
     psf = EnergyDependentTablePSF.read(FermiGalacticCenter.filenames()['psf'])
-    npred_cube_convolved = convolve_npred_cube(npred_cube, psf, max_offset=5,
-                                               resolution=1)
+    npred_cube_convolved = convolve_npred_cube(npred_cube, psf, offset_max=Angle(5, 'deg'),
+                                               pixel_size=Angle(1, 'deg'))
     expected = npred_cube.data.sum()
     actual = npred_cube_convolved.data.sum()
 
