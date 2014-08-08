@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+from astropy.coordinates import Angle
 from astropy.units import Quantity
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -33,7 +34,7 @@ def prepare_images():
     # Convolve with Energy-dependent Fermi LAT PSF
     psf = EnergyDependentTablePSF.read(FermiVelaRegion.filenames()['psf'])
     convolved_npred_cube = convolve_npred_cube(npred_cube, psf,
-                                               Quantity(3, 'deg'), Quantity(1, 'deg'))
+                                               Angle(3, 'deg'), Angle(1, 'deg'))
 
     # Counts data
     counts_data = fits.open(counts_file)[0].data
