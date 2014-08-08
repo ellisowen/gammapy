@@ -3,51 +3,16 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from astropy.units import Quantity
-from astropy.io import fits
-from astropy.wcs import WCS
-from gammapy.spectral_cube import (compute_npred_cube, GammaSpectralCube,
-                                   convolve_npred_cube)
-from gammapy.datasets.load import get_fermi_diffuse_background_model
-from gammapy.datasets import FermiVelaRegion, FermiGalacticCenter
 from gammapy.stats import significance
 from gammapy.image.utils import disk_correlate
-from gammapy.irf import EnergyDependentTablePSF
 
-# Reads in data
-background_file = FermiVelaRegion.filenames()['diffuse_model']
-exposure_file = FermiVelaRegion.filenames()['exposure_cube']
-counts_file = FermiVelaRegion.filenames()['counts_cube']
-background_model = GammaSpectralCube.read(background_file)
-exposure_cube = GammaSpectralCube.read(exposure_file)
+from npred_general import prepare_images
 
-# Reproject background cube
-repro_bg_cube = background_model.reproject_to(exposure_cube)
-
-# Define energy band required for output
-energies = Quantity([10, 500], 'GeV')
-
-# Compute the predicted counts cube
-npred_cube = compute_npred_cube(repro_bg_cube, exposure_cube, energies)
-
-# Convolve with Energy-dependent Fermi LAT PSF
-psf = EnergyDependentTablePSF.read(FermiVelaRegion.filenames()['psf'])
-convolved_npred_cube = convolve_npred_cube(npred_cube, psf, 3, 1)
-
-# Counts data
-counts_data = fits.open(counts_file)[0].data
-counts_wcs = WCS(fits.open(counts_file)[0].header)
-counts_cube = GammaSpectralCube(data=Quantity(counts_data, ''), wcs=counts_wcs,
-                                energy=energies)
-# counts_cube = counts_cube.reproject_to(npred_cube)
-
-counts = counts_cube.data[0]
-model = convolved_npred_cube.data[0]
+model, gtmodel, ratio, counts = prepare_images()
 
 # Top hat correlation
 correlation_radius = 3
 
-gtmodel = fits.open(FermiVelaRegion.filenames()['background_image'])[0].data.astype(float)
 correlated_gtmodel = disk_correlate(gtmodel, correlation_radius)
 correlated_counts = disk_correlate(counts, correlation_radius)
 correlated_model = disk_correlate(model, correlation_radius)
@@ -60,7 +25,7 @@ significance = np.nan_to_num(significance(correlated_counts, correlated_model,
                                           method='lima'))
 # Plotting
 
-vmin, vmax = 0, 10
+vmin, vmax = 0, 5
 
 fig, axes = plt.subplots(nrows=1, ncols=2)
 

@@ -1,5 +1,5 @@
-Background Models & Spectral Cubes
-==================================
+Fermi-LAT diffuse model predicted counts image
+==============================================
 
 The `gammapy.spectral_cube` module allows for image-based analysis in energy
 bands. In particular, similar functionality to gtmodel in the Fermi Science
@@ -19,6 +19,7 @@ methods in `gammapy.spectral_cube`, while a comparison against the significance 
 produced using the Fermi Science tools is shown on the right. These results are
 for the Vela region for energies between 10 and 500 GeV.
 
+.. literalinclude:: npred_general.py
 
 .. plot:: tutorials/npred/npred_convolved_significance.py
 	:include-source:
@@ -46,6 +47,7 @@ the differential flux contribution of the Fermi diffuse model gll_iem_v05_rev1.f
 The image on the right shows the ratio.
 
 .. plot:: tutorials/npred/npred_convolved.py
+	:include-source:
 
 We may compare these against the true counts observed by Fermi LAT in this region
 for the same parameters:
@@ -53,3 +55,8 @@ for the same parameters:
  * True counts: 261
  * Fermi Tools gtmodel predicted counts: 287
  * Gammapy predicted counts: 271
+ 
+ It should be noted that the gammapy and gtmodel predicted counts are higher than the true counts
+ in this region. This is unexpected as the true counts also have contributions from
+ sources (e.g. Vela in this region), as well as background counts. It is possible this
+ results from the diffuse model in being too high in this region.

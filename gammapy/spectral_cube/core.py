@@ -223,9 +223,8 @@ class GammaSpectralCube(object):
         cube_hdu = fits.ImageHDU(self.data, self.wcs.to_header())
         image_hdu = cube_to_image(cube_hdu)
         image_hdu.header['WCSAXES'] = 2
-        solid_angle_array = solid_angle(image_hdu)
-
-        return Quantity(solid_angle_array.value, 'deg2').to('steradian')
+        
+        return solid_angle(image_hdu).to('sr')
 
     def flux(self, lon, lat, energy):
         """Differential flux (linear interpolation).
@@ -338,11 +337,12 @@ class GammaSpectralCube(object):
         integral_flux = integral_flux.sum(axis=0)
 
         header = self.wcs.sub(['longitude', 'latitude']).to_header()
-        hdu = fits.ImageHDU(data=integral_flux, header=header, name='integral_flux')
+        hdu = fits.ImageHDU(data=Quantity(integral_flux, 'cm^-2 s^-1 sr^-1'),
+                            header=header, name='integral_flux')
 
         return hdu
 
-    def reproject_to(self, reference_cube):
+    def reproject_to(self, reference_cube, projection_type='bilinear'):
         """
         Spatially reprojects a `GammaSpectralCube` onto a reference cube.
 
@@ -350,9 +350,9 @@ class GammaSpectralCube(object):
         ----------
         reference_cube : `GammaSpectralCube`
             Reference cube with the desired spatial projection.
-        conserve : {'flux', 'surface_brightness'}
-            Specify whether reprojection should be flux conserving
-            or surface brightness conserving
+        projection_type : {'nearest-neighbor', 'bilinear',
+            'biquadratic', 'bicubic', 'flux-conserving'}
+            Specify method of reprojection. Default: 'bilinear'.
 
         Returns
         -------
@@ -382,7 +382,7 @@ class GammaSpectralCube(object):
         for i in energy_slices:
             array = cube[i]
             data_in = (array.value, wcs_in)
-            new_cube[i] = reproject(data_in, wcs_out, shape_out)
+            new_cube[i] = reproject(data_in, wcs_out, shape_out, projection_type)
         new_cube = Quantity(new_cube, array.unit)
         # Create new wcs
         header_in = self.wcs.to_header()
@@ -401,8 +401,27 @@ class GammaSpectralCube(object):
 
         return GammaSpectralCube(new_cube, wcs_out, energy)
 
-    def write_to_fits(self, filename, clobber=False):
-        """Writes GammaSpectralCube to fits.
+    def to_fits(self):
+        """Writes GammaSpectralCube to fits hdu_list.
+
+        Returns
+        -------
+        hdu_list : `astropy.io.fits.HDUList`
+            * hdu_list[0] : `astropy.io.fits.ImageHDU`
+                Image array of data
+            * hdu_list[1] : `astropy.io.fits.BinTableHDU`
+                Table of energies
+        """
+        image = fits.ImageHDU(self.data, self.wcs.to_header())
+        energies = fits.BinTableHDU(data = self.energy, name = 'ENERGIES')
+
+        hdu_list = fits.HDUList([image, energies])
+
+        return hdu_list
+
+
+    def writeto(self, filename, clobber=False):
+        """Writes GammaSpectralCube to fits file.
 
         Parameters
         ----------
@@ -413,7 +432,9 @@ class GammaSpectralCube(object):
             False: returns error if a file exists of the same name in the
             output directory.
         """
-        fits.writeto(filename, self.data, self.wcs.to_header(), clobber=clobber)
+        hdu_list = self.to_fits()
+        hdu_list.writeto(filename, clobber)
+
 
     def __repr__(self):
         # Copied from `spectral-cube` package
@@ -433,17 +454,17 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
 
     Parameters
     ----------
-    flux_cube : GammaSpectralCube
+    flux_cube : `GammaSpectralCube`
         Differential flux cube.
-    exposure_cube : GammaSpectralCube
+    exposure_cube : `GammaSpectralCube`
         Instrument exposure cube.
-    energy_bounds : array_like
+    energy_bounds : `~astropy.units.Quantity`
         An array of Quantities specifying the edges of the energy bins
         required for the predicted counts cube.
 
     Returns
     -------
-    npred_cube : GammaSpectralCube
+    npred_cube : `GammaSpectralCube`
         Predicted counts cube in energy bins.
     """
     if flux_cube.data.shape[1:] != exposure_cube.data.shape[1:]:
@@ -459,49 +480,46 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
                            exposure_cube.data.shape[1], exposure_cube.data.shape[2]))
     for i in range(len(energy_bounds) - 1):
         energy_bound = energy_bounds[i:i + 2]
-        energy_bound = energy_bound.to('MeV')
         int_flux = flux_cube.integral_flux_image(energy_bound)
         int_flux = Quantity(int_flux.data, '1 / (cm2 s sr)')
         exposure = Quantity(exposure_cube.flux(lon, lat, energy_centers[i]).value, 'cm2 s')
         npred_image = int_flux * exposure * solid_angle
         npred_cube[i] = npred_image.to('')
-    npred_cube = GammaSpectralCube(data=np.nan_to_num(npred_cube),
+    npred_cube = np.nan_to_num(npred_cube)
+
+    npred_cube = GammaSpectralCube(data=npred_cube,
                                    wcs=wcs,
                                    energy=energy_bounds)
     return npred_cube
 
 
-def convolve_npred_cube(npred_cube, psf_object, max_offset, resolution=1):
+def convolve_npred_cube(npred_cube, psf_object, offset_max, pixel_size=1):
     """Convolves a predicted counts cube in energy bins with the Fermi PSF.
 
     Parameters
     ----------
-    npred_cube : GammaSpectralCube
+    npred_cube : `GammaSpectralCube`
         Predicted counts cube in energy bins.
-    psf_object : EnergyDependentTablePSF
+    psf_object : `EnergyDependentTablePSF`
         Energy dependent PSF.
-    max_offset : float
+    offset_max : `~astropy.units.Quantity`
         Maximum offset in degrees of the PSF convolution kernel from its center.
-    resolution : float
+    pixel_size : `~astropy.units.Quantity`
         Resolution of the PSF convolution kernel.
 
     Returns
     -------
-    convolved_cube : GammaSpectralCube
+    convolved_cube : `GammaSpectralCube`
         PSF convolved predicted counts cube in energy bins.
     """
     from scipy.ndimage import convolve
-    pixel_size = Angle(resolution, 'deg')
-    offset_max = Angle(max_offset, 'deg')
     energy = npred_cube.energy
     indices = np.arange(len(energy) - 1)
     convolved_cube = np.zeros_like(npred_cube.data)
     for i in indices:
-        psf = psf_object.table_psf_in_energy_band(Quantity([energy[i].value,
-                                                            energy[i + 1].value],
-                                                           energy.unit))
-        kernel_array = psf.kernel(pixel_size, offset_max)
-        kernel_image = kernel_array / kernel_array.sum()
+        energy_band = energy[i:i + 2]
+        psf = psf_object.table_psf_in_energy_band(energy_band)
+        kernel_image = psf.kernel(pixel_size, offset_max, normalize=True)
         convolved_cube[i] = convolve(npred_cube.data[i], kernel_image,
                                      mode='constant')
     convolved_cube = GammaSpectralCube(data=convolved_cube, wcs=npred_cube.wcs,

@@ -82,7 +82,7 @@ class TestFermiVelaRegion():
     @remote_data
     def test_diffuse_model(self):
         diffuse_model = FermiVelaRegion.diffuse_model()
-        assert diffuse_model.data.shape == (30, 61, 61)
+        assert diffuse_model.data.shape == (30, 161, 161)
 
     @remote_data
     def test_background_image(self):
@@ -93,8 +93,8 @@ class TestFermiVelaRegion():
     @remote_data
     def test_exposure_cube(self):
         exposure_cube = FermiVelaRegion.exposure_cube()
-        assert exposure_cube.data.shape == (4, 50, 50)
-        assert exposure_cube.data.value.sum(), 1.4978096e+15
+        assert exposure_cube.data.shape == (21, 50, 50)
+        assert exposure_cube.data.value.sum(), 8.080618e+15
         assert_quantity(exposure_cube.energy[0], Quantity(10000, 'MeV'))
 
 
