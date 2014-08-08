@@ -32,7 +32,8 @@ def prepare_images():
 
     # Convolve with Energy-dependent Fermi LAT PSF
     psf = EnergyDependentTablePSF.read(FermiVelaRegion.filenames()['psf'])
-    convolved_npred_cube = convolve_npred_cube(npred_cube, psf, 3, 1)
+    convolved_npred_cube = convolve_npred_cube(npred_cube, psf,
+                                               Quantity(3, 'deg'), Quantity(1, 'deg'))
 
     # Counts data
     counts_data = fits.open(counts_file)[0].data
