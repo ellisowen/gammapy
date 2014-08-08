@@ -90,6 +90,11 @@ class TestFermiVelaRegion():
         assert background.data.shape == (50, 50) 
         assert background.data.sum(), 287.03403
 
+    @remote_data    
+    def test_events(self):
+        events_list = FermiVelaRegion.events()
+        assert events_list['EVENTS'].data.shape == (14812,)
+
     @remote_data
     def test_exposure_cube(self):
         exposure_cube = FermiVelaRegion.exposure_cube()

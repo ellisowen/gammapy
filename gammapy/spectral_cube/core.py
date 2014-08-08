@@ -413,7 +413,7 @@ class GammaSpectralCube(object):
                 Table of energies
         """
         image = fits.ImageHDU(self.data, self.wcs.to_header())
-        energies = fits.BinTableHDU(data = self.energy, name = 'ENERGIES')
+        energies = fits.BinTableHDU(self.energy, 'ENERGY')
 
         hdu_list = fits.HDUList([image, energies])
 
