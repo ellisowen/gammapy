@@ -485,7 +485,6 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
                            exposure_cube.data.shape[1], exposure_cube.data.shape[2]))
     for i in range(len(energy_bounds) - 1):
         energy_bound = energy_bounds[i:i + 2]
-        energy_bound = energy_bound.to('MeV')
         int_flux = flux_cube.integral_flux_image(energy_bound)
         int_flux = Quantity(int_flux.data, '1 / (cm2 s sr)')
         exposure = Quantity(exposure_cube.flux(lon, lat, energy_centers[i]).value, 'cm2 s')
