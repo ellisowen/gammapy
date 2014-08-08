@@ -32,9 +32,9 @@ def _extended_image(catalog, reference_cube):
     return reference_cube.data[0]
 
 
-def _source_image(catalog, reference_cube, total_flux = True):
+def _source_image(catalog, reference_cube, sim_hdu_list = None, total_flux = True):
     new_image = np.zeros_like(reference_cube.data, dtype=np.float64)
-    source_table = catalog_table(catalog, ebands='No')
+    source_table = catalog_table(catalog, sim_hdu_list, ebands='No')
     energies = source_table.meta['Energy Bins']
     wcs_reference = reference_cube.wcs
     footprint = wcs_reference.calc_footprint()
@@ -58,7 +58,7 @@ def _source_image(catalog, reference_cube, total_flux = True):
 
 
 def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
-                  total_flux='False'):  
+                  total_flux=False, sim_hdu_list=None):  
     """TODO
     """
     from scipy.ndimage import convolve
@@ -74,7 +74,7 @@ def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
         # TODO: Fix this & add energy output
         new_image = _extended_image(catalog, reference_cube)
     elif source_type == 'point':
-        new_image, energy = _source_image(catalog, reference_cube, total_flux = True)
+        new_image, energy = _source_image(catalog, reference_cube, filename, total_flux)
     elif source_type == 'all':
         raise NotImplementedError
         # Currently Extended Sources do not work
@@ -95,18 +95,21 @@ def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
     return out_cube
  
 
-def catalog_table(catalog, ebands='No'):
+def catalog_table(catalog, sim_hdu_list=None, ebands='No'):
     """ TODO
     """
     from scipy.stats import gmean
     data = []
-    cat_table = fetch_fermi_catalog(catalog, 'LAT_Point_Source_Catalog')
+    if catalog == 'simulation':
+        cat_table = sim_hdu_list[1].data
+    else:
+        cat_table = fetch_fermi_catalog(catalog, 'LAT_Point_Source_Catalog')
     for source in np.arange(len(cat_table)):
         glon = cat_table['GLON'][source]
         glat = cat_table['GLAT'][source]
         source_name = cat_table['Source_Name'][source]
         # Different from here between each catalog because of different catalog header names
-        if catalog == '1FHL':
+        if catalog == '1FHL' or 'simulation':
             energy = Quantity([10, 30, 100, 500], 'GeV')
             if ebands == 'No':
                 flux_bol = cat_table['Flux'][source]
