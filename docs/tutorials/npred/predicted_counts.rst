@@ -1,5 +1,5 @@
-Background Models & Spectral Cubes
-==================================
+Fermi-LAT diffuse model predicted counts image
+==============================================
 
 The `gammapy.spectral_cube` module allows for image-based analysis in energy
 bands. In particular, similar functionality to gtmodel in the Fermi Science
