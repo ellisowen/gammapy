@@ -28,15 +28,15 @@ def test_source_image():
     reference_hdu = make_empty_image(10, 10, 1)
     reference_wcs = WCS(reference_hdu.header)
     energy = Quantity([10, 500], 'GeV')
-    reference = GammaSpectralCube(data = reference_hdu.data,
-                                  wcs = reference_wcs, energy = energy)
+    reference = GammaSpectralCube(data=reference_hdu.data,
+                                  wcs=reference_wcs, energy=energy)
 
     psf_file = FermiGalacticCenter.filenames()['psf']
     psf = EnergyDependentTablePSF.read(psf_file)
 
-    image, energies = catalog._source_image(catalog = '1FHL',
-                                            reference_cube = reference,
-                                            total_flux = True)
+    image, energies = catalog._source_image(catalog='1FHL',
+                                            reference_cube=reference,
+                                            total_flux=True)
 
     actual = image.sum()
     # Flux of sources within a 10x10 deg region about Galactic Center
@@ -45,6 +45,7 @@ def test_source_image():
 
 
 @pytest.mark.skipif('not HAS_SCIPY')
+@remote_data
 def test_catalog_image():
     reference_hdu = make_empty_image(10, 10, 1)
     reference_wcs = WCS(reference_hdu.header)
@@ -53,16 +54,18 @@ def test_catalog_image():
     psf_file = FermiGalacticCenter.filenames()['psf']
     psf = EnergyDependentTablePSF.read(psf_file)
 
-    out_cube = catalog.catalog_image(reference_hdu, psf, catalog='1FHL', source_type = 'point',
-                  total_flux=True, sim_table=None)
+    out_cube = catalog.catalog_image(reference_hdu, psf, catalog='1FHL',
+                                     source_type='point', total_flux=True,
+                                     sim_table=None)
 
     actual = out_cube.data.sum()
 
     # Ensures flux is consistent following PSF convolution to within 1%
     expected = 1.6098631760996795e-07
-    assert_allclose(actual, expected, rtol = 0.01)
+    assert_allclose(actual, expected, rtol=0.01)
 
 
+@remote_data
 def test_catalog_table():
     # Checks catalogs are loaded correctly
 

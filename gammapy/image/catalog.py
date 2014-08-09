@@ -1,16 +1,16 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """ Make an image from a source catalog, or simulated catalog, e.g 1FHL 2FGL etc
 """
-__all__ = ['catalog_image', 'catalog_table']
-
 import numpy as np
 from astropy.coordinates import Angle
 from astropy.wcs import WCS
 from astropy.units import Quantity
 from astropy.table import Table
 from ..datasets.load import fetch_fermi_extended_sources, fetch_fermi_catalog
-from ..image import coordinates
+from . import coordinates
 from ..spectral_cube import GammaSpectralCube
+
+__all__ = ['catalog_image', 'catalog_table']
 
 
 def _extended_image(catalog, reference_cube):
@@ -20,7 +20,7 @@ def _extended_image(catalog, reference_cube):
     hdu_list = fetch_fermi_extended_sources(catalog)[1:]
     for source in hdu_list:
         source_wcs = WCS(source.header)
-        source_spec_cube = GammaSpectralCube(data = Quantity(np.array([source.data]), ''),
+        source_spec_cube = GammaSpectralCube(data=Quantity(np.array([source.data]), ''),
                                                  wcs=source_wcs, energy=energy)
         new_source_cube = source_spec_cube.reproject_to(reference_cube)
         # TODO: Fix this hack
@@ -28,7 +28,7 @@ def _extended_image(catalog, reference_cube):
     return reference_cube.data[0]
 
 
-def _source_image(catalog, reference_cube, sim_table = None, total_flux = True):
+def _source_image(catalog, reference_cube, sim_table=None, total_flux=True):
     """Adds point sources to a larger survey image.
     """
     new_image = np.zeros_like(reference_cube.data, dtype=np.float64)
@@ -60,7 +60,7 @@ def _source_image(catalog, reference_cube, sim_table = None, total_flux = True):
         return new_image, energies
 
 
-def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
+def catalog_image(reference, psf, catalog='1FHL', source_type='point',
                   total_flux=False, sim_table=None):  
     """Creates an image from a simulated catalog, or from 1FHL or 2FGL sources.
 
@@ -97,8 +97,8 @@ def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
     wcs = WCS(reference.header)
     # Uses dummy energy for now to construct spectral cube
     # TODO : Fix this hack
-    reference_cube = GammaSpectralCube(data = Quantity(np.array(reference.data), ''),
-                                          wcs = wcs, energy = Quantity([0, 1], 'GeV'))
+    reference_cube = GammaSpectralCube(data=Quantity(np.array(reference.data), ''),
+                                          wcs=wcs, energy=Quantity([0, 1], 'GeV'))
     if source_type == 'extended':
         raise NotImplementedError
         # TODO: Currently fluxes are not correct for extended sources.
@@ -109,17 +109,17 @@ def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
         raise NotImplementedError
         # TODO: Currently Extended Sources do not work
         extended = _extended_image(catalog, reference_cube)
-        point_source =  _source_image(catalog, reference_cube, total_flux = True)[0]
+        point_source = _source_image(catalog, reference_cube, total_flux=True)[0]
         new_image = extended + point_source
     else:
         raise ValueError
-    total_point_image = GammaSpectralCube(data = new_image, wcs = wcs, energy = energy)
+    total_point_image = GammaSpectralCube(data=new_image, wcs=wcs, energy=energy)
     convolved_cube = new_image.copy()
     psf = psf.table_psf_in_energy_band(Quantity([np.min(energy).value,
                                         np.max(energy).value], energy.unit))
     resolution = abs(reference.header['CDELT1'])
-    kernel_array = psf.kernel(pixel_size = Angle(resolution, 'deg'),
-                              offset_max = Angle(5, 'deg'), normalize = True)
+    kernel_array = psf.kernel(pixel_size=Angle(resolution, 'deg'),
+                              offset_max=Angle(5, 'deg'), normalize=True)
     convolved_cube = convolve(new_image, kernel_array, mode='constant')
     out_cube = GammaSpectralCube(data=convolved_cube, wcs=total_point_image.wcs,
                                      energy=energy)
@@ -169,11 +169,11 @@ def catalog_table(catalog, ebands=False):
                            GLON=glon, GLAT=glat, flux=flux_bol)
             else:
                 Flux_30_100 = cat_table['Flux30_100'][source]
-                Flux_100_300  = cat_table['Flux100_300'][source]
-                Flux_300_1000  = cat_table['Flux300_1000'][source]
-                Flux_1000_3000  = cat_table['Flux1000_3000'][source]
-                Flux_3000_10000  = cat_table['Flux3000_10000'][source]
-                Flux_10000_100000  = cat_table['Flux10000_100000'][source]
+                Flux_100_300 = cat_table['Flux100_300'][source]
+                Flux_300_1000 = cat_table['Flux300_1000'][source]
+                Flux_1000_3000 = cat_table['Flux1000_3000'][source]
+                Flux_3000_10000 = cat_table['Flux3000_10000'][source]
+                Flux_10000_100000 = cat_table['Flux10000_100000'][source]
                 row = dict(Source_Type='PointSource', Source_Name=source_name,
                            GLON=glon, GLAT=glat, Flux_30_100=Flux_30_100,
                            Flux_100_300=Flux_100_300, Flux_300_1000=Flux_300_1000,
