@@ -1,25 +1,21 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-""" make an image from a source catalog, or simulated catalog, e.g 1FHL 2FGL etc
+""" Make an image from a source catalog, or simulated catalog, e.g 1FHL 2FGL etc
 """
 __all__ = ['catalog_image', 'catalog_table']
 
-from astropy.io import fits
-from astropy.modeling.models import Gaussian2D, Disk2D
+import numpy as np
 from astropy.coordinates import Angle
-from gammapy.image.utils import make_header, disk_correlate
-from gammapy.datasets.load import fetch_fermi_extended_sources, fetch_fermi_catalog
-from gammapy.datasets import FermiGalacticCenter
-from gammapy.spectral_cube import GammaSpectralCube
-from gammapy.image import coordinates
 from astropy.wcs import WCS
 from astropy.units import Quantity
 from astropy.table import Table
-from gammapy.irf import EnergyDependentTablePSF
-import numpy as np
-
+from ..datasets.load import fetch_fermi_extended_sources, fetch_fermi_catalog
+from ..image import coordinates
+from ..spectral_cube import GammaSpectralCube
 
 
 def _extended_image(catalog, reference_cube):
+    """Reprojects and adds extended source images to a larger survey image.
+    """
     # Note that the first extended source fits file is unreadable...
     hdu_list = fetch_fermi_extended_sources(catalog)[1:]
     for source in hdu_list:
@@ -32,56 +28,89 @@ def _extended_image(catalog, reference_cube):
     return reference_cube.data[0]
 
 
-def _source_image(catalog, reference_cube, sim_hdu_list = None, total_flux = True):
+def _source_image(catalog, reference_cube, sim_table = None, total_flux = True):
+    """Adds point sources to a larger survey image.
+    """
     new_image = np.zeros_like(reference_cube.data, dtype=np.float64)
-    source_table = catalog_table(catalog, sim_hdu_list, ebands='No')
+    if sim_table == None:
+        source_table = catalog_table(catalog, ebands=False)
+    else:
+        source_table = sim_table
     energies = source_table.meta['Energy Bins']
     wcs_reference = reference_cube.wcs
     footprint = wcs_reference.calc_footprint()
     glon_max, glon_min = footprint[0][0], footprint[2][0] - 360
     glat_min, glat_max = footprint[0][1], footprint[1][1]
-    for source in np.arange(len(source_table['Flux'])):
+    for source in np.arange(len(source_table['flux'])):
         lon = source_table['GLON'][source]
         if lon >= 180:
             lon = lon - 360
         if (glon_min < lon) & (lon < glon_max):            
             lat = source_table['GLAT'][source]
             if (glat_min < lat) & (lat < glat_max):
-                flux = source_table['Flux'][source]
+                flux = source_table['flux'][source]
                 wcs = reference_cube.wcs
                 x, y = wcs.wcs_world2pix(lon, lat, 0)
                 xi, yi = x.astype(int), y.astype(int)
                 new_image[yi, xi] = new_image[yi, xi] + flux
     if total_flux == True:
-        factor = source_table['Flux'].sum() / new_image.sum()
+        factor = source_table['flux'].sum() / new_image.sum()
         return new_image * factor, energies
     else:
         return new_image, energies
 
 
 def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
-                  total_flux=False, sim_hdu_list=None):  
-    """TODO
+                  total_flux=False, sim_table=None):  
+    """Creates an image from a simulated catalog, or from 1FHL or 2FGL sources.
+
+    Parameters
+    ----------
+    reference : `~fits.ImageHDU`
+        Reference Image HDU. The output takes the shape and resolution of this.
+    psf : `~gammapy.irf.EnergyDependentTablePSF`
+        Energy dependent Table PSF object for image convolution.
+    catalog : str
+        Flag which source catalog is to be used to create the image.
+        Options: {'1FHL', '2FGL', 'simulation'}
+        If 'simulation' is used, sim_table must also be provided.
+    source_type : str
+        Specify whether point or extended sources should be included, or both.
+        Options: {'point', 'extended', 'all'}
+        TODO: Currently only 'point' is implemented.
+    total_flux : bool
+        Specify whether to conserve total flux.
+    sim_table : `~astropy.table.Table`
+        Table of simulated point sources. Only required if catalog = 'simulation'
+
+    Returns
+    -------
+    out_cube : `~gammapy.spectral_cube.GammaSpectralCube`
+        2D Spectral cube containing the image.
+
+    Notes
+    -----
+    This is currently only implemented for a single energy band.
     """
     from scipy.ndimage import convolve
     lons, lats = coordinates(reference)
     wcs = WCS(reference.header)
-    # Uses dummy energy for now
+    # Uses dummy energy for now to construct spectral cube
+    # TODO : Fix this hack
     reference_cube = GammaSpectralCube(data = Quantity(np.array(reference.data), ''),
                                           wcs = wcs, energy = Quantity([0, 1], 'GeV'))
     if source_type == 'extended':
         raise NotImplementedError
-        # Currently fluxes are not correct for extended sources.
-        # This will therefore give incorrect results.
-        # TODO: Fix this & add energy output
+        # TODO: Currently fluxes are not correct for extended sources.
         new_image = _extended_image(catalog, reference_cube)
     elif source_type == 'point':
-        new_image, energy = _source_image(catalog, reference_cube, sim_hdu_list, total_flux)
+        new_image, energy = _source_image(catalog, reference_cube, sim_table, total_flux)
     elif source_type == 'all':
         raise NotImplementedError
-        # Currently Extended Sources do not work
-        # TODO: Fix this & add energy output
-        new_image = _extended_image(catalog, reference_cube) + _source_image(catalog, reference_cube, total_flux = True)[0]
+        # TODO: Currently Extended Sources do not work
+        extended = _extended_image(catalog, reference_cube)
+        point_source =  _source_image(catalog, reference_cube, total_flux = True)[0]
+        new_image = extended + point_source
     else:
         raise ValueError
     total_point_image = GammaSpectralCube(data = new_image, wcs = wcs, energy = energy)
@@ -97,39 +126,47 @@ def catalog_image(reference, psf, catalog='1FHL', source_type = 'point',
     return out_cube
  
 
-def catalog_table(catalog, sim_hdu_list=None, ebands='No'):
-    """ TODO
+def catalog_table(catalog, ebands=False):
+    """ Creates catalog table from published source catalog.
+
+    Parameters
+    ----------
+    catalog : str
+        Catalog to load.
+        Options: {'1FHL', '2FGL'}
+    ebands : bool
+        Whether to return catalog in energy bands.
+
+    Returns
+    -------
+    table : `~astropy.table.Table`
+        Point source catalog table.
     """
-    from scipy.stats import gmean
     data = []
-    if catalog == 'simulation':
-        cat_table = sim_hdu_list[1].data
-    else:
-        cat_table = fetch_fermi_catalog(catalog, 'LAT_Point_Source_Catalog')
+    cat_table = fetch_fermi_catalog(catalog, 'LAT_Point_Source_Catalog')
     for source in np.arange(len(cat_table)):
         glon = cat_table['GLON'][source]
         glat = cat_table['GLAT'][source]
-        source_name = cat_table['Source_Name'][source]
         # Different from here between each catalog because of different catalog header names
-        if catalog == '1FHL' or 'simulation':
+        if catalog == ('1FHL' or 'simulation'):
             energy = Quantity([10, 30, 100, 500], 'GeV')
-            if ebands == 'No':
+            if ebands == False:
                 flux_bol = cat_table['Flux'][source]
-                row = dict(Source_Type='PointSource', Source_Name=source_name,
-                           GLON=glon, GLAT=glat, Flux=flux_bol)
+                row = dict(Source_Type='PointSource',
+                           GLON=glon, GLAT=glat, flux=flux_bol)
             else:
                 Flux_10_30 = cat_table['Flux10_30GeV'][source]
                 Flux_30_100 = cat_table['Flux30_100GeV'][source]
                 Flux_100_500 = cat_table['Flux100_500GeV'][source]
-                row = dict(Source_Type='PointSource', Source_Name=source_name,
+                row = dict(Source_Type='PointSource',
                            GLON=glon, GLAT=glat, Flux10_30=Flux10_30,
                            Flux30_100=Flux30_100, Flux100_500=Flux100_500)
         elif catalog == '2FGL':
             energy = Quantity([30, 100, 300, 1000, 3000, 10000, 100000], 'GeV') 
-            if ebands == 'No':
+            if ebands == False:
                 flux_bol = cat_table['Flux_Density'][source]
-                row = dict(Source_Type='PointSource', Source_Name=source_name,
-                           GLON=glon, GLAT=glat, Flux=flux_bol)
+                row = dict(Source_Type='PointSource',
+                           GLON=glon, GLAT=glat, flux=flux_bol)
             else:
                 Flux_30_100 = cat_table['Flux30_100'][source]
                 Flux_100_300  = cat_table['Flux100_300'][source]

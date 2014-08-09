@@ -5,7 +5,7 @@ from gammapy.datasets import FermiGalacticCenter
 from astropy.io import fits
 import numpy as np
 import matplotlib.pyplot as plt
-# Spatial distribution using Lorimer (2006) model
+
 from gammapy.utils.random import sample_powerlaw
 from gammapy.astro import population
 from gammapy.astro.population import add_observed_parameters
@@ -32,10 +32,9 @@ luminosity_index = 1.5 # Luminosity function differential power-law index
 
 luminosity = sample_powerlaw(luminosity_min, luminosity_max, luminosity_index, n_sources)
 table['luminosity'] = luminosity
-
+# Spatial distribution using Lorimer (2006) model
 table = add_observed_parameters(table)
-import IPython; IPython.embed()
 # pass table into function
 
 image = catalog_image(reference, psf, catalog='simulation', source_type = 'point',
-                  total_flux=True, sim_hdu_list=table)
+                  total_flux=True, sim_table=table)
