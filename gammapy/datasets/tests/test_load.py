@@ -101,6 +101,14 @@ class TestFermiVelaRegion():
         assert exposure_cube.data.shape == (21, 50, 50)
         assert exposure_cube.data.value.sum(), 8.080618e+15
         assert_quantity(exposure_cube.energy[0], Quantity(10000, 'MeV'))
+    
+    @remote_data    
+    def test_livetime(self):
+        livetime_list = FermiVelaRegion.livetime_cube()
+        assert livetime_list[1].data.shape == (12288,)
+        assert livetime_list[2].data.shape == (12288,)
+        assert livetime_list[3].data.shape == (4,)
+        assert livetime_list[4].data.shape == (17276,)
 
 
 @remote_data

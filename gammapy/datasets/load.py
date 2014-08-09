@@ -204,6 +204,7 @@ class FermiVelaRegion(object):
         url_diffuse = BASE_URL + 'gll_iem_v05_rev1_cutout.fits'
         url_events = BASE_URL + 'events_vela.fits'
         url_psf = BASE_URL + 'psf_vela.fits'
+        url_livetime = BASE_URL + 'livetime_vela.fits'
 
         result['counts_cube'] = data.download_file(url_counts, cache=True)
         result['exposure_cube'] = data.download_file(url_exposure, cache=True)
@@ -211,6 +212,7 @@ class FermiVelaRegion(object):
         result['diffuse_model'] = data.download_file(url_diffuse, cache=True)
         result['events'] = data.download_file(url_events, cache=True)
         result['psf'] = data.download_file(url_psf, cache=True)
+        result['livetime_cube'] = data.download_file(url_livetime, cache=True)
         return result
 
     @staticmethod
@@ -287,6 +289,18 @@ class FermiVelaRegion(object):
         """
         filename = FermiVelaRegion.filenames()['exposure_cube']
         return GammaSpectralCube.read(filename)
+    
+    @staticmethod
+    def livetime_cube():
+        """Livetime cube.
+
+        Returns
+        -------
+        livetime_cube : `~astropy.io.fits.HDUList`
+            Livetime cube hdu_list
+        """
+        filename = FermiVelaRegion.filenames()['livetime_cube']
+        return fits.open(filename)
 
 
 def tev_spectrum(source_name):

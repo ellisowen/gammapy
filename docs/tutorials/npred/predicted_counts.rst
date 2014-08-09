@@ -53,10 +53,5 @@ We may compare these against the true counts observed by Fermi LAT in this regio
 for the same parameters:
 
  * True counts: 261
- * Fermi Tools gtmodel predicted counts: 287
+ * Fermi Tools gtmodel predicted counts: 145
  * Gammapy predicted counts: 271
- 
- It should be noted that the gammapy and gtmodel predicted counts are higher than the true counts
- in this region. This is unexpected as the true counts also have contributions from
- sources (e.g. Vela in this region), as well as background counts. It is possible this
- results from the diffuse model in being too high in this region.

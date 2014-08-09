@@ -360,6 +360,7 @@ class GammaSpectralCube(object):
             Cube spatially reprojected to the reference cube.
         """
         from reproject import reproject
+
         reference = reference_cube.data
         shape_out = reference[0].shape
         try:
@@ -449,7 +450,9 @@ class GammaSpectralCube(object):
         return s
 
 
-def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
+
+def compute_npred_cube(flux_cube, exposure_cube, energy_bounds,
+                       integral_resolution=10):
     """Computes predicted counts cube in energy bins.
 
     Parameters
@@ -461,6 +464,8 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
     energy_bounds : `~astropy.units.Quantity`
         An array of Quantities specifying the edges of the energy bins
         required for the predicted counts cube.
+    integral_resolution : int (optional)
+        Number of integration steps in energy bin when computing integral flux.
 
     Returns
     -------
@@ -480,7 +485,7 @@ def compute_npred_cube(flux_cube, exposure_cube, energy_bounds):
                            exposure_cube.data.shape[1], exposure_cube.data.shape[2]))
     for i in range(len(energy_bounds) - 1):
         energy_bound = energy_bounds[i:i + 2]
-        int_flux = flux_cube.integral_flux_image(energy_bound)
+        int_flux = flux_cube.integral_flux_image(energy_bound, integral_resolution)
         int_flux = Quantity(int_flux.data, '1 / (cm2 s sr)')
         exposure = Quantity(exposure_cube.flux(lon, lat, energy_centers[i]).value, 'cm2 s')
         npred_image = int_flux * exposure * solid_angle

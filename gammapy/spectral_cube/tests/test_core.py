@@ -179,39 +179,71 @@ def test_compute_npred_cube():
     assert_allclose(actual, expected)
 
 
-@pytest.mark.skipif('not HAS_SCIPY')
-@pytest.mark.skipif('not HAS_REPROJECT')
-def test_analytical_npred_cube():
-    # Analytical check: g=2, N=1 gives int. flux 0.25 between 1 and 2 (arbitrary units of energy).
-    # Exposure = 1, so solid angle only factor which varies.
-    # Result should be 0.25 * 1 * solid_angle_array
+def make_test_cubes(energies, nxpix, nypix, binsz):
+    """Makes exposure and spectral cube for tests.
+    Parameters
+    ----------
+    energies : `~astropy.units.Quantity`
+        Quantity 1D array of energies of cube layers
+    nxpix : int
+        Number of pixels in x-spatial direction
+    nypix : int
+        Number of pixels in y-spatial direction
+    binsz : float
+        Spatial resolution of cube, in degrees per pixel
 
-    hdu = make_empty_image(nxpix=10, nypix=10, binsz=1)
+    Returns
+    -------
+    exposure_cube : `~gammapy.spectral_cube.GammaSpectralCube`
+        Cube of uniform exposure = 1 cm^2 s
+    spectral_cube : `~gammapy.spectral_cube.GammaSpectralCube`
+        Cube of differential fluxes in units of cm^-2 s^-1 GeV^-1 sr^-1
+    """
+    hdu = make_empty_image(nxpix, nypix, binsz)
     solid_angle_array = solid_angle(hdu)
-    expected = 0.25 * solid_angle_array.value
-
-    header = make_header(nxpix=10, nypix=10, binsz=1)
+    header = make_header(nxpix, nypix, binsz)
     header['NAXIS'] = 3
-    header['NAXIS3'] = 2
+    header['NAXIS3'] = len(energies)
     header['CDELT3'] = 1
     header['CRVAL3'] = 1
     header['CRPIX3'] = 1
     wcs = WCS(header)
-    data_array = np.ones((2, 10, 10))
-    energies = Quantity([1, 2], 'GeV')
+    data_array = np.ones((len(energies), 10, 10))
     exposure_cube = GammaSpectralCube(data=Quantity(data_array, 'cm2 s'),
                                       wcs=wcs, energy=energies)
 
-    flux = power_law_eval(energies[1], 1, 2, energies[0])
-    flux_array = flux * data_array
-    spectral_cube = GammaSpectralCube(data=flux_array,
+    flux = Quantity(power_law_eval(energies.value, 1, 2,
+                                   1), '1/(cm2 s GeV sr)')
+    flux_array = np.zeros_like(data_array)
+    for i in np.arange(len(flux)):
+        flux_array[i] = flux.value[i] * data_array[i]
+    spectral_cube = GammaSpectralCube(data=Quantity(flux_array, flux.unit),
                                       wcs=wcs, energy=energies)
+    return exposure_cube, spectral_cube
 
-    npred_cube = compute_npred_cube(spectral_cube, exposure_cube, energies)
+
+@pytest.mark.skipif('not HAS_SCIPY')
+@pytest.mark.skipif('not HAS_REPROJECT')
+def test_analytical_npred_cube():
+    # Analytical check: g=2, N=1 gives int. flux 0.25 between 1 and 2
+    # (arbitrary units of energy).
+    # Exposure = 1, so solid angle only factor which varies.
+    # Result should be 0.5 * 1 * solid_angle_array from integrating analytically
+
+    energies = Quantity([1, 2], 'GeV')
+    exposure_cube, spectral_cube = make_test_cubes(energies, 10, 10, 1)
+
+    solid_angle_array = exposure_cube.solid_angle_image
+    # Expected npred counts (so no quantity)
+    expected = 0.5 * solid_angle_array.value
+    # Integral resolution is 1 as this is a true powerlaw case
+    npred_cube = compute_npred_cube(spectral_cube, exposure_cube,
+                                    energies, integral_resolution=1)
 
     actual = npred_cube.data[0]
-    
+
     assert_allclose(actual, expected)
+
 
 @pytest.mark.skipif('not HAS_SCIPY')
 @pytest.mark.skipif('not HAS_REPROJECT')
