@@ -53,5 +53,5 @@ We may compare these against the true counts observed by Fermi LAT in this regio
 for the same parameters:
 
  * True total counts: 1066
- * Fermi Tools gtmodel predicted background counts: 314
- * Gammapy predicted background counts: 867
+ * Fermi Tools gtmodel predicted background counts: 247
+ * Gammapy predicted background counts: 264

@@ -139,6 +139,8 @@ class GammaSpectralCube(object):
         # Note: the energy axis of the FITS cube is unusable.
         # We only use proj for LON, LAT and do ENERGY ourselves
         header = fits.getheader(filename)
+        header['CDELT1'] = -1 * np.abs(header['CDELT1'])
+        header = fits.getheader(filename)
         wcs = WCS(header)
         energy = Table.read(filename, 'ENERGIES')['Energy']
         energy = Quantity(energy, 'MeV')
@@ -359,7 +361,7 @@ class GammaSpectralCube(object):
         reprojected_cube : `GammaSpectralCube`
             Cube spatially reprojected to the reference cube.
         """
-        from reproject.spherical_intersect import reproject_celestial
+        from reproject import reproject
 
         reference = reference_cube.data
         shape_out = reference[0].shape
@@ -382,11 +384,8 @@ class GammaSpectralCube(object):
         # first need to be understood and fixed. 
         for i in energy_slices:
             array = cube[i]
-            #data_in = (array.value, wcs_in)
-            # Problem here with wcs???
-            # TODO: fix this
-            import IPython; IPython.embed()
-            new_cube[i] = reproject_celestial(array.value, wcs_in, wcs_out, shape_out)#, projection_type)
+            data_in = (array.value, wcs_in)
+            new_cube[i] = reproject(data_in, wcs_out, shape_out, projection_type)
         new_cube = Quantity(new_cube, array.unit)
         # Create new wcs
         header_in = self.wcs.to_header()

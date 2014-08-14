@@ -21,10 +21,10 @@ def prepare_images():
     counts_file = "/home/ellis/software/python/gammapy-extra/datasets/vela_region/counts_vela.fits"#FermiVelaRegion.filenames()['counts_cube']
     background_model = GammaSpectralCube.read(background_file)
     exposure_cube = GammaSpectralCube.read(exposure_file)
-
-    # Reproject background cube; flux-conserving as this is a flux cube
-    repro_bg_cube = background_model.reproject_to(exposure_cube, 'flux-conserving')
-
+    # Add correct units
+    exposure_cube.data = Quantity(exposure_cube.data, '1/(cm2 deg2 s GeV)')
+    # Reproject background cube
+    repro_bg_cube = background_model.reproject_to(exposure_cube)
     # Define energy band required for output
     energies = Quantity([10, 500], 'GeV')
 
@@ -47,7 +47,7 @@ def prepare_images():
     model = convolved_npred_cube.data[0]
 
     # Load Fermi tools gtmodel result
-    gtmodel = fits.open("/home/ellis/software/python/gammapy-extra/datasets/vela_region/gtmodel_vela.fits")[0].data.astype(float)
+    gtmodel = fits.open("/home/ellis/software/python/gammapy-extra/datasets/vela_region/gtmodel_nosrc.fits")[0].data.astype(float)
 
     # Ratio for the two background images
     ratio = np.nan_to_num(model / gtmodel)

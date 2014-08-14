@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 from npred_general import prepare_images
 
 model, gtmodel, ratio, counts = prepare_images()
-import IPython; IPython.embed()
+
 # Plotting
-vmin, vmax = 0, 1
+vmin, vmax = 0, 1.1
 
 fig, axes = plt.subplots(nrows=1, ncols=3)
 
@@ -33,5 +33,3 @@ c = fig.get_axes()[2]
 a.set_axis_off()
 b.set_axis_off()
 c.set_axis_off()
-
-import IPython; IPython.embed()
