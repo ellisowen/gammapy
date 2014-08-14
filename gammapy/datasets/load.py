@@ -201,6 +201,7 @@ class FermiVelaRegion(object):
         url_counts = BASE_URL + 'counts_vela.fits'
         url_exposure = BASE_URL + 'exposure_vela.fits'
         url_background = BASE_URL + 'background_vela.fits'
+        url_point = BASE_URL + 'point_vela.fits'
         url_diffuse = BASE_URL + 'gll_iem_v05_rev1_cutout.fits'
         url_events = BASE_URL + 'events_vela.fits'
         url_psf = BASE_URL + 'psf_vela.fits'
@@ -209,6 +210,7 @@ class FermiVelaRegion(object):
         result['counts_cube'] = data.download_file(url_counts, cache=True)
         result['exposure_cube'] = data.download_file(url_exposure, cache=True)
         result['background_image'] = data.download_file(url_background, cache=True)
+        result['predicted_image'] = data.download_file(url_point, cache=True)
         result['diffuse_model'] = data.download_file(url_diffuse, cache=True)
         result['events'] = data.download_file(url_events, cache=True)
         result['psf'] = data.download_file(url_psf, cache=True)
@@ -255,15 +257,29 @@ class FermiVelaRegion(object):
 
     @staticmethod
     def background_image():
-        """Predicted background counts spectral cube.
+        """Predicted background counts image.
         Based on the Fermi Diffuse model (see class docstring).
 
         Returns
         -------
         background_cube : `~astropy.io.fits.PrimaryHDU`
-            Diffuse model spectral cube
+            Diffuse model image.
         """
         filename = FermiVelaRegion.filenames()['background_image']
+        return fits.open(filename)[0]
+    
+    @staticmethod
+    def predicted_image():
+        """Predicted counts spectral image including Vela Pulsar.
+        Based on the Fermi Diffuse model (see class docstring) and
+        Vela Point source model.
+
+        Returns
+        -------
+        background_cube : `~astropy.io.fits.PrimaryHDU`
+            Predicted model image.
+        """
+        filename = FermiVelaRegion.filenames()['predicted_image']
         return fits.open(filename)[0]
     
     @staticmethod
