@@ -5,6 +5,7 @@ from __future__ import print_function, division
 import logging
 import numpy as np
 from astropy.units import Unit
+from astropy.table import Table
 
 __all__ = ['SEDComponent', 'SED']
 
@@ -240,3 +241,42 @@ def add_crab(ax):
                        e_scale = 1e6, norm_scale = 1e-6, color='g', butterfly = True)
     # Add published fermi result
     """
+
+def cube_sed(cube, lats, lons, counts = None, mask_array=None, invert=False, errors=False, spectral_index=2.3):
+    """Creates SED from GammaSpectralCube within given latitude and longitude range.
+    """
+    from gammapy.spectrum.flux_point import _energy_lafferty_powerlaw
+    lon, lat = cube.spatial_coordinate_images
+    mask_init = (lats[0] <= lat) & (lat < lats[1])
+    mask = mask_int & (lons[0] <= lon) & (lon < lons[1])
+    if mask_array != None:
+        if invert == True:
+            mask_array = np.invert(mask_array)
+        mask = mask & mask_array
+
+    values = []
+    for i in np.arange(cube.data.shape[0]):
+        bin = cube.data[i][mask].sum()
+        values.append(bin)
+
+    emins = cube.energy[:-1]
+    emaxs = cube.energy[1:]
+
+    energy = _energy_lafferty_powerlaw(emins, emaxs, spectral_index)
+    if errors == True:
+        if counts == None:
+            # Counts cube required to calculate poisson errors
+            raise ValueError
+        else:
+            counts = []
+            for i in np.arange(counts.data.shape[0]):
+                bin = counts.data[i][mask].sum()
+                counts.append(bin)
+            r_errors = 1./(np.sqrt(counts))
+            error_array = values * r_errors
+    else:
+        error_array = np.zeros_like(values)
+    data = dict(ENERGY=energy, DIFF_FLUX=values, ERROR=error_array)
+    
+    return Table(data) 
+    
