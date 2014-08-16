@@ -1,9 +1,10 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from __future__ import print_function, division
+import numpy as np
 from astropy.tests.helper import pytest
 from ..models import PowerLaw, PLExpCutoff
-from ..sed import SED, add_spec
-
+from ..sed import SED, add_spec, cube_sed
+from ..datasets import FermiGalacticCenter
 
 @pytest.mark.xfail
 def test_add_spec():
@@ -103,3 +104,86 @@ def test_42():
     # sed.add(['2FGL J1224.9+2122']) # 4C+21.35
     # sed.add(['2FGL J0534.5+2201']) # Crab
     sed.plot('sed.png')
+
+def test_cube_sed1():
+    """Tests against known results with differential cube of 1s.
+    """
+    spec_cube = FermiGalacticCenter.diffuse_model()
+    spec_cube.data = 10 * np.ones_like(spec_cube.data)
+
+    counts = FermiGalacticCenter.diffuse_model()
+    counts.data = np.ones_like(counts.data)
+
+    mask = np.zeros_like(spec_cube.data[0]).value
+
+    lats, lons = spec_cube.spatial_coordinate_images
+    lat = [lats.min(), lats.max()]
+    lon = [lons.min(), lons.max()]
+
+    sed_table1 = cube_sed(spec_cube, lat, lon, flux_type='Differential')
+    assert sed_table1['DIFF_FLUX'].data == 900 * np.ones(30)
+    assert sed_table1['ERROR'].data == np.zeros(30)
+
+    sed_table2 = cube_sed(spec_cube, lat, lon, flux_type='Differential',
+                          mask_array = mask)
+    assert sed_table2['DIFF_FLUX'].data == np.zeros(30)
+    assert sed_table2['ERROR'].data == np.zeros(30)
+
+    sed_table3 = cube_sed(spec_cube, lat, lon, flux_type='Differential',
+                          errors=True, standard_error = 0.1)
+    assert sed_table3['DIFF_FLUX'].data == 900 * np.ones(30)
+    assert sed_table3['ERROR'].data == 90 * np.ones(30)
+
+    sed_table4 = cube_sed(spec_cube, lat, lon, flux_type='Differential',
+                          errors=True, counts = counts)
+    assert sed_table4['DIFF_FLUX'].data == 900 * np.ones(30)
+    assert sed_table4['ERROR'].data == 900 * np.sqrt(1./90)
+
+def test_cube_sed2():
+    """Tests against known results with integral cube of 1s.
+    """
+    spec_cube = FermiGalacticCenter.diffuse_model()
+    spec_cube.data = 10 * np.ones_like(spec_cube.data[:-1])
+
+    counts = FermiGalacticCenter.diffuse_model()
+    counts.data = np.ones_like(counts.data[:-1])
+
+    mask = np.zeros_like(spec_cube.data[0]).value
+
+    lats, lons = spec_cube.spatial_coordinate_images
+    lat = [lats.min(), lats.max()]
+    lon = [lons.min(), lons.max()]
+
+    sed_table1 = cube_sed(spec_cube, lat, lon, flux_type='Integral')
+
+    assert sed_table1['ENERGY'][0] == 56.95239033587774
+    assert sed_table1['ENERGY'][29] == 87642.21228661809
+
+    assert sed_table1['DIFF_FLUX'][0] == 60.06875633884682
+    assert sed_table1['DIFF_FLUX'][29] == 0.03903437816942336
+
+    assert sed_table1['DIFF_FLUX_ERROR'] == np.zeros(30)
+
+    sed_table2 = cube_sed(spec_cube, lat, lon, flux_type='Integral',
+                          mask_array = mask)
+
+    assert sed_table2['DIFF_FLUX'] == np.zeros(30)
+    assert np.nan_to_num(sed_table2['DIFF_FLUX_ERROR']) == np.zeros(30)
+    
+    sed_table3 = cube_sed(spec_cube, lat, lon, flux_type='Integral',
+                          errors=True, standard_error = 0.1)
+
+    assert sed_table3['DIFF_FLUX'][0] == 60.06875633884682
+    assert sed_table3['DIFF_FLUX'][29] == 0.03903437816942336
+
+    assert sed_table3['DIFF_FLUX_ERROR'][0] == 0.1 * sed_table1['DIFF_FLUX'][0]
+    assert sed_table3['DIFF_FLUX_ERROR'][29] == 0.1 * sed_table1['DIFF_FLUX'][29]
+
+    sed_table4 = cube_sed(spec_cube, lat, lon, flux_type='Integral',
+                          errors=True, counts = counts)
+    
+    assert sed_table4['DIFF_FLUX'][0] == 60.06875633884682
+    assert sed_table4['DIFF_FLUX'][29] == 0.03903437816942336
+
+    assert sed_table3['DIFF_FLUX_ERROR'][0] == np.sqrt(1./90) * sed_table1['DIFF_FLUX'][0]
+    assert sed_table3['DIFF_FLUX_ERROR'][29] == np.sqrt(1./90) * sed_table1['DIFF_FLUX'][29]

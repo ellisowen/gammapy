@@ -4,10 +4,11 @@
 from __future__ import print_function, division
 import logging
 import numpy as np
-from astropy.units import Unit
-from astropy.table import Table
+from astropy.table import Table, Column
+from astropy.units import Unit, Quantity
+from .flux_point import compute_differential_flux_points
 
-__all__ = ['SEDComponent', 'SED']
+__all__ = ['SEDComponent', 'SED', 'cube_sed']
 
 MeV_to_GeV = Unit('MeV').to(Unit('GeV'))
 MeV_to_erg = Unit('MeV').to(Unit('erg'))
@@ -242,41 +243,100 @@ def add_crab(ax):
     # Add published fermi result
     """
 
-def cube_sed(cube, lats, lons, counts = None, mask_array=None, invert=False, errors=False, spectral_index=2.3):
-    """Creates SED from GammaSpectralCube within given latitude and longitude range.
+
+def cube_sed(cube, lats, lons, flux_type='Differential', counts=None, mask_array=None,
+             invert=False, errors=False, standard_error=0.1, spectral_index=2.3):
+    """Creates SED from GammaSpectralCube within given GLAT and GLON range.
+
+    Parameters
+    ---------
+    cube : `~gammapy.spectral_cube.GammaSpectralCube`
+        Spectral cube of either differential or integral fluxes (specified
+        with flux_type)
+    lats : array_like
+        Specified as [GLAT_min, GLAT_max], with GLAT_min and GLAT_max
+        as floats. A 1x2 array specifying the maximum and minimum latitudes to
+        include in determining the SED points, which should be within the 
+        spatial bounds of the cube.
+    lons : array_like
+        Specified as [GLON_min, GLON_max], with GLON_min and GLON_max
+        as floats. A 1x2 array specifying the maximum and minimum latitudes to
+        include in determining the SED points, which should be within the 
+        spatial bounds of the cube.
+    flux_type : String, {'Differential', 'Integral'}
+        Specify whether input cube includes Differential or Integral fluxes.
+    counts :  `~gammapy.spectral_cube.GammaSpectralCube`
+        Counts cube to allow Poisson errors to be calculated. If not provided,
+        a standard_error should be provided, or zero errors will be returned.
+        (Optional).
+    mask_array : array_like
+        2D mask array, matching spatial dimensions of input cube. (Optional).
+    invert : bool
+        If True, inverts the mask array. Default False.
+    errors : bool
+        If True, computes errors, if possible, according to provided inputs.
+        If False (default), returns all errors as zero.
+    standard_error : float
+        If counts cube not provided, but error values required, this specifies
+        a standard fractional error to be applied to values. Default = 0.1.
+    spectral_index : float
+        If integral flux is provided, this is used to calculate differential
+        fluxes and energies (according to the Lafferty & Wyatt model-based
+        method, assuming a power-law model).
+
+    Returns
+    -------
+    table : `~astropy.table.Table`
+        A Spectral Energy table of Energies, Differential Fluxes and
+        Differential Flux Errors. Units as those input.
     """
-    from gammapy.spectrum.flux_point import _energy_lafferty_powerlaw
+
     lon, lat = cube.spatial_coordinate_images
     mask_init = (lats[0] <= lat) & (lat < lats[1])
-    mask = mask_int & (lons[0] <= lon) & (lon < lons[1])
+    mask = mask_init & (lons[0] <= lon) & (lon < lons[1])
     if mask_array != None:
         if invert == True:
             mask_array = np.invert(mask_array)
-        mask = mask & mask_array
+        mask = np.array(mask * mask_array, dtype=bool)
 
     values = []
     for i in np.arange(cube.data.shape[0]):
         bin = cube.data[i][mask].sum()
-        values.append(bin)
+        values.append(bin.value)
+    values = np.array(values)
 
-    emins = cube.energy[:-1]
-    emaxs = cube.energy[1:]
-
-    energy = _energy_lafferty_powerlaw(emins, emaxs, spectral_index)
     if errors == True:
         if counts == None:
             # Counts cube required to calculate poisson errors
-            raise ValueError
+            errors = np.ones_like(values) * standard_error
         else:
-            counts = []
+            errors = []
             for i in np.arange(counts.data.shape[0]):
                 bin = counts.data[i][mask].sum()
-                counts.append(bin)
-            r_errors = 1./(np.sqrt(counts))
-            error_array = values * r_errors
+                r_error = 1. / (np.sqrt(bin.value))
+                errors.append(r_error)
     else:
-        error_array = np.zeros_like(values)
-    data = dict(ENERGY=energy, DIFF_FLUX=values, ERROR=error_array)
-    
-    return Table(data) 
-    
+        errors = np.zeros_like(values)
+
+    if flux_type == 'Differential':
+        energy = cube.energy
+        table = Table([energy,
+                       Quantity(values, cube.data.unit),
+                       Quantity(errors * values, cube.data.unit)],
+                      names=('ENERGY', 'DIFF_FLUX', 'ERROR'))
+        return table
+
+    elif flux_type == 'Integral':
+
+        emins = cube.energy[:-1]
+        emaxs = cube.energy[1:]
+        table = compute_differential_flux_points(x_method='lafferty',
+                                                 y_method='power_law',
+                                                 spectral_index=spectral_index,
+                                                 energy_min=emins, energy_max=emaxs,
+                                                 int_flux=values, 
+                                                 int_flux_err=errors * values)
+        return table
+
+    else:
+        raise ValueError
