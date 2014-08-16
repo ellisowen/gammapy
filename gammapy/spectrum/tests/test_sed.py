@@ -1,10 +1,11 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from __future__ import print_function, division
 import numpy as np
+from numpy.testing import assert_allclose
 from astropy.tests.helper import pytest
 from ..models import PowerLaw, PLExpCutoff
 from ..sed import SED, add_spec, cube_sed
-from ..datasets import FermiGalacticCenter
+from ...datasets import FermiGalacticCenter
 
 @pytest.mark.xfail
 def test_add_spec():
@@ -121,23 +122,23 @@ def test_cube_sed1():
     lon = [lons.min(), lons.max()]
 
     sed_table1 = cube_sed(spec_cube, lat, lon, flux_type='Differential')
-    assert sed_table1['DIFF_FLUX'].data == 900 * np.ones(30)
-    assert sed_table1['ERROR'].data == np.zeros(30)
+    assert_allclose(sed_table1['DIFF_FLUX'].data, 900 * np.ones(30))
+    assert_allclose(sed_table1['DIFF_FLUX_ERR'].data, np.zeros(30))
 
     sed_table2 = cube_sed(spec_cube, lat, lon, flux_type='Differential',
                           mask_array = mask)
-    assert sed_table2['DIFF_FLUX'].data == np.zeros(30)
-    assert sed_table2['ERROR'].data == np.zeros(30)
+    assert_allclose(sed_table2['DIFF_FLUX'].data, np.zeros(30))
+    assert_allclose(sed_table2['DIFF_FLUX_ERR'].data, np.zeros(30))
 
     sed_table3 = cube_sed(spec_cube, lat, lon, flux_type='Differential',
                           errors=True, standard_error = 0.1)
-    assert sed_table3['DIFF_FLUX'].data == 900 * np.ones(30)
-    assert sed_table3['ERROR'].data == 90 * np.ones(30)
+    assert_allclose(sed_table3['DIFF_FLUX'].data, 900 * np.ones(30))
+    assert_allclose(sed_table3['DIFF_FLUX_ERR'].data, 90 * np.ones(30))
 
     sed_table4 = cube_sed(spec_cube, lat, lon, flux_type='Differential',
                           errors=True, counts = counts)
-    assert sed_table4['DIFF_FLUX'].data == 900 * np.ones(30)
-    assert sed_table4['ERROR'].data == 900 * np.sqrt(1./90)
+    assert_allclose(sed_table4['DIFF_FLUX'].data, 900 * np.ones(30))
+    assert_allclose(sed_table4['DIFF_FLUX_ERR'].data, 900 * np.sqrt(1./90))
 
 def test_cube_sed2():
     """Tests against known results with integral cube of 1s.
@@ -156,34 +157,38 @@ def test_cube_sed2():
 
     sed_table1 = cube_sed(spec_cube, lat, lon, flux_type='Integral')
 
-    assert sed_table1['ENERGY'][0] == 56.95239033587774
-    assert sed_table1['ENERGY'][29] == 87642.21228661809
+    assert_allclose(sed_table1['ENERGY'][0], 56.95239033587774)
+    assert_allclose(sed_table1['ENERGY'][28], 87642.21228661809)
 
-    assert sed_table1['DIFF_FLUX'][0] == 60.06875633884682
-    assert sed_table1['DIFF_FLUX'][29] == 0.03903437816942336
+    assert_allclose(sed_table1['DIFF_FLUX'][0], 60.06875633884682)
+    assert_allclose(sed_table1['DIFF_FLUX'][28], 0.03903437816942336)
 
-    assert sed_table1['DIFF_FLUX_ERROR'] == np.zeros(30)
+    assert_allclose(sed_table1['DIFF_FLUX_ERR'], np.zeros(29))
 
     sed_table2 = cube_sed(spec_cube, lat, lon, flux_type='Integral',
                           mask_array = mask)
 
-    assert sed_table2['DIFF_FLUX'] == np.zeros(30)
-    assert np.nan_to_num(sed_table2['DIFF_FLUX_ERROR']) == np.zeros(30)
+    assert_allclose(sed_table2['DIFF_FLUX'], np.zeros(29))
+    assert_allclose(np.nan_to_num(sed_table2['DIFF_FLUX_ERR']), np.zeros(29))
     
     sed_table3 = cube_sed(spec_cube, lat, lon, flux_type='Integral',
                           errors=True, standard_error = 0.1)
 
-    assert sed_table3['DIFF_FLUX'][0] == 60.06875633884682
-    assert sed_table3['DIFF_FLUX'][29] == 0.03903437816942336
+    assert_allclose(sed_table3['DIFF_FLUX'][0], 60.06875633884682)
+    assert_allclose(sed_table3['DIFF_FLUX'][28], 0.03903437816942336)
 
-    assert sed_table3['DIFF_FLUX_ERROR'][0] == 0.1 * sed_table1['DIFF_FLUX'][0]
-    assert sed_table3['DIFF_FLUX_ERROR'][29] == 0.1 * sed_table1['DIFF_FLUX'][29]
+    assert_allclose(sed_table3['DIFF_FLUX_ERR'][0],
+                    0.1 * sed_table3['DIFF_FLUX'][0])
+    assert_allclose(sed_table3['DIFF_FLUX_ERR'][28],
+                    0.1 * sed_table3['DIFF_FLUX'][28])
 
     sed_table4 = cube_sed(spec_cube, lat, lon, flux_type='Integral',
                           errors=True, counts = counts)
     
-    assert sed_table4['DIFF_FLUX'][0] == 60.06875633884682
-    assert sed_table4['DIFF_FLUX'][29] == 0.03903437816942336
+    assert_allclose(sed_table4['DIFF_FLUX'][0], 60.06875633884682)
+    assert_allclose(sed_table4['DIFF_FLUX'][28], 0.03903437816942336)
 
-    assert sed_table3['DIFF_FLUX_ERROR'][0] == np.sqrt(1./90) * sed_table1['DIFF_FLUX'][0]
-    assert sed_table3['DIFF_FLUX_ERROR'][29] == np.sqrt(1./90) * sed_table1['DIFF_FLUX'][29]
+    assert_allclose(sed_table4['DIFF_FLUX_ERR'][0],
+                    np.sqrt(1./90) * sed_table4['DIFF_FLUX'][0])
+    assert_allclose(sed_table4['DIFF_FLUX_ERR'][28],
+                    np.sqrt(1./90) * sed_table4['DIFF_FLUX'][28])

@@ -249,7 +249,7 @@ def cube_sed(cube, lats, lons, flux_type='Differential', counts=None, mask_array
     """Creates SED from GammaSpectralCube within given GLAT and GLON range.
 
     Parameters
-    ---------
+    ----------
     cube : `~gammapy.spectral_cube.GammaSpectralCube`
         Spectral cube of either differential or integral fluxes (specified
         with flux_type)
@@ -323,7 +323,7 @@ def cube_sed(cube, lats, lons, flux_type='Differential', counts=None, mask_array
         table = Table([energy,
                        Quantity(values, cube.data.unit),
                        Quantity(errors * values, cube.data.unit)],
-                      names=('ENERGY', 'DIFF_FLUX', 'ERROR'))
+                      names=('ENERGY', 'DIFF_FLUX', 'DIFF_FLUX_ERR'))
         return table
 
     elif flux_type == 'Integral':
