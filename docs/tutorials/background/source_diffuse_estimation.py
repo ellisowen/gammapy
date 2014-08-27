@@ -1,27 +1,21 @@
 """Estimate a diffuse emission model from Fermi LAT data.
 """
 import numpy as np
+import matplotlib.pyplot as plt
 from astropy.io import fits
 from gammapy.datasets import FermiGalacticCenter
-from gammapy.background.kernel import GammaImages, IterativeBackgroundEstimator
+from gammapy.background import IterativeKernelBackgroundEstimator, GammaImages
 from gammapy.irf import EnergyDependentTablePSF
 from gammapy.image import make_empty_image, catalog_image, binary_disk
 from gammapy.image.utils import cube_to_image, solid_angle
-from aplpy import FITSFigure
 
 # *** PREPARATION ***
 
 # Parameters
-TOTAL_COUNTS = 1e6
-SOURCE_FRACTION = 0.2
 
-CORRELATION_RADIUS = 3
-SIGNIFICANCE_THRESHOLD = 5
-MASK_DILATION_RADIUS = 3 # pix
-NUMBER_OF_ITERATIONS = 4
-
-# Derived parameters
-DIFFUSE_FRACTION = 1. - SOURCE_FRACTION
+CORRELATION_RADIUS = 0.3
+SIGNIFICANCE_THRESHOLD = 4
+MASK_DILATION_RADIUS = 0.3 # pix
 
 psf_file = FermiGalacticCenter.filenames()['psf']
 psf = EnergyDependentTablePSF.read(psf_file)
@@ -55,23 +49,42 @@ background_data=np.ones_like(counts_data, dtype=float)
 background = fits.ImageHDU(data=background_data, header=reference.header)
 images = GammaImages(counts=counts, background=background)
 
-source_kernel = np.ones((3, 3))
-#source_kernel = binary_disk(CORRELATION_RADIUS).astype(float)
+source_kernel = binary_disk(CORRELATION_RADIUS).astype(float)
 source_kernel /= source_kernel.sum()
 
 background_kernel = np.ones((5, 5))
 
 # *** ITERATOR ***
 
-ibe = IterativeBackgroundEstimator(images=images,
-                                   source_kernel=source_kernel,
-                                   background_kernel=background_kernel,
-                                   significance_threshold=SIGNIFICANCE_THRESHOLD,
-                                   mask_dilation_radius=MASK_DILATION_RADIUS
-                                   )
+ibe = IterativeKernelBackgroundEstimator(images=images,
+                                         source_kernel=source_kernel,
+                                         background_kernel=background_kernel,
+                                         significance_threshold=SIGNIFICANCE_THRESHOLD,
+                                         mask_dilation_radius=MASK_DILATION_RADIUS,
+                                         save_intermediate_results=True
+                                         )
 
-mask, background = ibe.run()
+n_iterations = 5
 
-fig = FITSFigure(background)
-fig.show_colorscale(stretch='linear', interpolation='none')
-fig.add_colorbar()
+# *** RUN & PLOT ***
+
+for iteration in range(n_iterations):
+    ibe.run_iteration()
+    mask_hdu = ibe.mask_image_hdu
+    mask = mask_hdu.data
+
+    plt.subplot(n_iterations, 2, 2 * iteration + 1)
+    background_hdu = ibe.background_image_hdu
+    data = background_hdu.data
+    plt.imshow(data)
+    plt.contour(mask, levels=[0], linewidths=2, colors='white')
+    plt.axis('off')
+    
+    plt.subplot(n_iterations, 2, 2 * iteration + 2)
+    significance_hdu = ibe.significance_image_hdu
+    data = significance_hdu.data
+    plt.imshow(data, vmin=-3, vmax=5)
+    plt.contour(mask, levels=[0], linewidths=2, colors='white')
+    plt.axis('off')
+
+plt.tight_layout()
