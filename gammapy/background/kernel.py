@@ -203,11 +203,11 @@ class IterativeKernelBackgroundEstimator(object):
         
         # Convert new Images to HDUs to store in a GammaImages object
         counts = fits.ImageHDU(data=images.counts, header=images.header)
-        significance = fits.ImageHDU(data=images.significance, header=images.header)
         background = fits.ImageHDU(data=background, header=images.header)
         mask = fits.ImageHDU(data=mask.astype(int), header=images.header)
         images = GammaImages(counts, background, mask)
         images.compute_correlated_maps(self.source_kernel)
+        significance = fits.ImageHDU(data=images.significance, header=images.header)
 
         self._data.append(images)
     

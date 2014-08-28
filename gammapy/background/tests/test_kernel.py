@@ -4,7 +4,6 @@ import numpy as np
 from numpy.testing import assert_allclose, assert_equal
 import os
 import tempfile
-import unittest
 from astropy.io import fits
 from astropy.tests.helper import pytest
 from ...background import GammaImages, IterativeKernelBackgroundEstimator
@@ -45,10 +44,10 @@ def test_GammaImages():
 
 
 @pytest.mark.skipif('not HAS_SCIPY')
-class test_IterativeKernelBackgroundEstimator(unittest.TestCase):
+class TestIterativeKernelBackgroundEstimator(object):
     """Tests methods in the IterativeKernelBackgroundEstimator.
     """
-    def setUp(self):
+    def setup_class(self):
         """Prepares appropriate input and defines inputs for test cases.
         """
 
@@ -114,21 +113,23 @@ class test_IterativeKernelBackgroundEstimator(unittest.TestCase):
         """Tests that files are saves, and checks values within them."""
         # Create temporary file to write output into
         dir = tempfile.mkdtemp()
-        self.ibe.run_iteration()
+        self.ibe.run_iteration(1)
         self.ibe.save_files(filebase=dir, index=0)
 
         mask_filename = dir + '00_mask.fits'
-        significance_filename = dir + '00_mask.fits'
-        background_filename = dir + '00_mask.fits'
+        significance_filename = dir + '00_significance.fits'
+        background_filename = dir + '00_background.fits'
 
         mask_data = fits.open(mask_filename)[1].data
         significance_data = fits.open(significance_filename)[1].data
         background_data = fits.open(background_filename)[1].data
 
-        # Runs just initial iteration - everything should still be zero at this
-        # stage as updated at beginning of second iteration. 
-        assert_allclose(mask_data.sum(), 0)
-        assert_allclose(significance_data.sum(), 0)
-        assert_allclose(background_data.sum(), 0)
+        # Checks values in files against known results for one iteration.
+        assert_allclose(mask_data.sum(), 97)
+        assert_allclose(significance_data.sum(), 90.82654795219804)
+        assert_allclose(background_data.sum(), 4200)
 
         os.removedirs(dir)
+
+    def teardown_class(self):
+        pass
