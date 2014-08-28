@@ -221,7 +221,7 @@ class Maps(fits.HDUList):
         logging.debug('Making derived maps.')
         for name in DERIVED_MAP_NAMES:
             # Compute the derived map
-            hdu = eval('self.make_{0}()'.format(name))
+            hdu = eval('self.{0}()'.format(name))
             # Put it in the HDUList, removing an older version
             # of the derived map should it exist.
             try:
