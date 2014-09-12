@@ -21,7 +21,7 @@ class GammaImages(object):
         self.header = counts.header
         if background == None:
             # Start with a flat background estimate
-            self.background = np.ones_like(counts.data, dtype=float)
+            self.background = 0.001 * np.ones_like(counts.data, dtype=float)
         else:
             self.background = np.asarray(background.data, dtype=float)
 
@@ -34,11 +34,10 @@ class GammaImages(object):
         """Compute significance image for a given kernel.
         """
         from scipy.ndimage import convolve
-
+        print("Calls Images!")
         self.counts_corr = convolve(self.counts, kernel)
         self.background_corr = convolve(self.background, kernel)
         self.significance = significance(self.counts_corr, self.background_corr)
-
         return self
 
 
@@ -94,15 +93,13 @@ class IterativeKernelBackgroundEstimator(object):
         
         self.delete_intermediate_results = delete_intermediate_results
         self.save_intermediate_results = save_intermediate_results
-
         # Calculate initial significance image
-        self._data[-1].compute_correlated_maps(self.source_kernel)        
+        self._data[-1].compute_correlated_maps(self.source_kernel)
         gc.collect()
     
     def run_ntimes(self, n_iterations, filebase=None):
         """Run N iterations."""
 
-        self._data[-1].compute_correlated_maps(self.source_kernel)
         if self.save_intermediate_results:
             self.save_files(filebase, index=0)
 
@@ -124,8 +121,8 @@ class IterativeKernelBackgroundEstimator(object):
                 del self._data[0]
                 gc.collect()
 
-            mask = self.mask_image_hdu
-            background = self.background_image_hdu
+            mask = self._data[0].mask
+            background = self._data[0].background
 
         return mask, background
 
@@ -133,36 +130,38 @@ class IterativeKernelBackgroundEstimator(object):
     def run(self, filebase=None):
         """Run until mask is stable."""
 
-        self._data[-1].compute_correlated_maps(self.source_kernel)
+        ii = 0
         if self.save_intermediate_results:
-            self.save_files(filebase, index=0)
+            self.save_files(filebase, index=ii)
         
         self.run_iteration(update_mask=False)
             
+        ii = ii + 1
         if self.save_intermediate_results: 
             self.save_files(filebase, index=ii)
         
         check_mask = False
 
         while check_mask == False:
-            mask = self.mask_image_hdu
-            old_mask = mask.data
+
+            ii = ii + 1
+
             self.run_iteration(update_mask=True)
             
             if self.save_intermediate_results: 
                 self.save_files(filebase, index=ii)
 
+            new_mask = self._data[-1].mask
+            old_mask = self._data[0].mask
+            background = self._data[-1].mask
             if self.delete_intermediate_results:
                 # Remove results from previous iteration
                 del self._data[0]
                 gc.collect()
 
-            new_mask = self.mask_image_hdu
-            background = self.background_image_hdu
-            
             # Test mask (note will terminate as soon as mask does not change).
-            new = np.nan_to_num(new_mask.data.sum())
-            old = np.nan_to_num(old_mask.sum())
+            new = new_mask.sum()
+            old = old_mask.sum()
 
             if new == old:
                 check_mask = True
@@ -184,49 +183,54 @@ class IterativeKernelBackgroundEstimator(object):
         """
 
         from scipy.ndimage import convolve
-        # Start with images from the last iteration
-        images = self._data[-1]
-
-        # Compute new exclusion mask:
-        if update_mask:
-            mask = np.where(images.significance > self.significance_threshold, 0, 1)
-            mask = np.invert(binary_dilation_circle(mask == 0, radius=self.mask_dilation_radius))
+        # Start with images from the last iteration. If not, makes one.
+        # Check if initial mask exists:
+        if self._data[0].mask.sum() == self._data[-1].mask.size:
+            mask = np.where(self._data[0].significance > self.significance_threshold, 0, 1)
         else:
-            mask = images.mask.copy()
+            # Compute new exclusion mask:
+            if update_mask:
+                # Check first if mask needs updating:
+                check = np.where(self._data[0].significance[self._data[-1].mask] > self.significance_threshold, 1, 0)
+                if check.sum() == 0:
+                    mask = self._data[-1].mask.copy()
+                else:
+                    # Only update mask if there are further significant regions to exclude
+                    mask = np.invert(binary_dilation_circle(np.invert(self._data[-1].mask), radius=self.mask_dilation_radius))
+            else:
+                mask = self._data[-1].mask.copy()
         
         # Compute new background estimate:
         # Convolve old background estimate with background kernel,
         # excluding sources via the old mask.
-        weighted_counts = convolve(images.mask * images.counts, self.background_kernel)
-        weighted_counts_normalisation = convolve(images.mask.astype(float), self.background_kernel)
+        weighted_counts = convolve(mask * self._data[0].counts, self.background_kernel)
+        weighted_counts_normalisation = convolve(mask.astype(float), self.background_kernel)
         background = weighted_counts / weighted_counts_normalisation
         
         # Convert new Images to HDUs to store in a GammaImages object
-        counts = fits.ImageHDU(data=images.counts, header=images.header)
-        background = fits.ImageHDU(data=background, header=images.header)
-        mask = fits.ImageHDU(data=mask.astype(int), header=images.header)
+        counts = fits.ImageHDU(data=self._data[-1].counts, header=self._data[-1].header)
+        background = fits.ImageHDU(data=background, header=self._data[-1].header)
+        mask = fits.ImageHDU(data=mask.astype(int), header=self._data[-1].header)
         images = GammaImages(counts, background, mask)
         images.compute_correlated_maps(self.source_kernel)
-        significance = fits.ImageHDU(data=images.significance, header=images.header)
-
         self._data.append(images)
+        significance = fits.ImageHDU(data=self._data[-1].significance, header=self._data[-1].header)
     
     def save_files(self, filebase, index):
         """Saves files to fits."""
 
         header = self.header
-        images = self._data[-1]
 
         filename = filebase + '{0:02d}_mask'.format(index) + '.fits'
-        hdu = fits.ImageHDU(data=images.mask.astype(np.uint8), header=header)
+        hdu = fits.ImageHDU(data=self._data[-1].mask.astype(np.uint8), header=header)
         hdu.writeto(filename, clobber=True)
 
         filename = filebase + '{0:02d}_background'.format(index) + '.fits'
-        hdu = fits.ImageHDU(data=images.background, header=header)
+        hdu = fits.ImageHDU(data=self._data[-1].background, header=header)
         hdu.writeto(filename, clobber=True)
 
         filename = filebase + '{0:02d}_significance'.format(index) + '.fits'
-        hdu = fits.ImageHDU(data=images.significance, header=header)
+        hdu = fits.ImageHDU(data=self._data[-1].significance, header=header)
         hdu.writeto(filename, clobber=True)    
 
     @property
@@ -234,24 +238,21 @@ class IterativeKernelBackgroundEstimator(object):
         """Returns mask as `~astropy.io.fits.ImageHDU`."""
 
         header = self.header
-        images = self._data[-1]
-
-        return fits.ImageHDU(data=images.mask.astype(np.uint8), header=header)    
+        #import IPython; IPython.embed() 
+        return fits.ImageHDU(data=self._data[-1].mask.astype(np.uint8), header=header)    
 
     @property
     def background_image_hdu(self):
         """Returns resulting background estimate as `~astropy.io.fits.ImageHDU`."""
 
         header = self.header
-        images = self._data[-1]
 
-        return fits.ImageHDU(data=images.background, header=header)
+        return fits.ImageHDU(data=self._data[-1].background, header=header)
 
     @property
     def significance_image_hdu(self):
         """Returns resulting background estimate as `~astropy.io.fits.ImageHDU`."""
 
         header = self.header
-        images = self._data[-1]
 
-        return fits.ImageHDU(data=images.significance, header=header)
+        return fits.ImageHDU(data=self._data[-1].significance, header=header)
